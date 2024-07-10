@@ -1,6 +1,6 @@
 # PokéTCGDEX
 
-Store and keep logs of pokemone cards and created decks.
+Store and keep logs of Pokémon cards and created decks.
  - Create Decks
  - Store Cards
 
