@@ -10,7 +10,7 @@ class CreateDeckFrame(customtkinter.CTkFrame):
         self.deck_select_label.grid(row=0, column=0, padx=20, pady=10, sticky="w")
         
         self.selected_card_label = customtkinter.CTkLabel(self, text="Selected Card: ")
-        self.selected_card_label.grid(row=2, column=0, padx=20, pady=10, sticky="w")
+        self.selected_card_label.grid(row=4, column=0, padx=20, pady=10, sticky="w")
 
         self.deck_options = [f"{deck[0]}: {deck[1]}" for deck in self.master.db.get_all_decks()]
         self.deck_var = customtkinter.StringVar(value=self.deck_options[0] if self.deck_options else "")
@@ -26,13 +26,17 @@ class CreateDeckFrame(customtkinter.CTkFrame):
         self.remove_card_button = customtkinter.CTkButton(self, text="Remove Card", command=self.remove_card_event)
         self.remove_card_button.grid(row=0, column=4, padx=20, pady=10)
 
+        self.delete_deck_button = customtkinter.CTkButton(self, text="Delete Deck", command=self.delete_deck_event)
+        self.delete_deck_button.grid(row=0, column=5, padx=20, pady=10)
+
         # Create a scrollable frame for the card grid
         self.scrollable_frame = customtkinter.CTkScrollableFrame(self, width=700, height=500)
-        self.scrollable_frame.grid(row=1, column=0, columnspan=5, padx=20, pady=10, sticky="nsew")
+        self.scrollable_frame.grid(row=1, column=0, rowspan=3, columnspan=6, padx=20, pady=10, sticky="nsew")
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
         self.scrollable_frame.grid_rowconfigure(0, weight=1)
 
         self.selected_card_id = None  # To keep track of the selected card for removal
+        self.view_deck_event()
 
     def view_deck_event(self):
         for widget in self.scrollable_frame.winfo_children():
@@ -116,7 +120,7 @@ class CreateDeckFrame(customtkinter.CTkFrame):
             rarity = rarity_entry.get() if rarity_entry.get() else None
             collection_count = collection_count_entry.get() if collection_count_entry.get() else None
             if name and number:
-                for _ in range(0,collection_count):
+                for _ in range(0,int(collection_count)):
                     self.master.db.add_card(name=name, number=number, set_total=set_total, deck_id=deck_id, rarity=rarity)
                 self.view_deck_event()  # Refresh the deck view
                 add_card_window.destroy()
@@ -133,3 +137,10 @@ class CreateDeckFrame(customtkinter.CTkFrame):
             self.view_deck_event()  # Refresh the deck view
         else:
             print("No card selected to remove")
+
+    def delete_deck_event(self):
+        selected_deck = self.deck_var.get()
+        deck_id = int(selected_deck.split(":")[0].strip())
+        self.master.db.delete_deck(deck_id)
+        self.update_deck_options()
+        self.view_deck_event()  # Refresh the deck view

@@ -150,6 +150,7 @@ class CardDatabase:
         self.conn.commit()
 
     def delete_deck(self, deck_id):
+        self.cursor.execute('UPDATE cards SET deck_id = -1 WHERE deck_id = ?', (deck_id,))
         self.cursor.execute('DELETE FROM decks WHERE id = ?', (deck_id,))
         self.conn.commit()
 
