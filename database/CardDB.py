@@ -1,13 +1,14 @@
 import sqlite3
 from database.CardDBObj import CardGenerator
 
+
 class CardDatabase:
     def __init__(self, database_path):
         self.conn = sqlite3.connect(database_path)
         self.cursor = self.conn.cursor()
-        self._create_tables()
+        self.__create_tables()
 
-    def _create_tables(self):
+    def __create_tables(self):
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS cards (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,11 +48,11 @@ class CardDatabase:
         try:
             cg = CardGenerator()
             card = cg.get_card_details(name=name, number=number, set_total=set_total, rarity=rarity)
-            return self._insert(card, deck_id)
+            return self.__insert(card, deck_id)
         except sqlite3.IntegrityError as e:
             print(f"An error occurred: {e}")
 
-    def _insert(self, card, deck_id):
+    def __insert(self, card, deck_id):
         existing_card = self.find_card(card.name, card.number, card.set_total)
         if existing_card:
             # Insert duplicate entry
@@ -83,14 +84,14 @@ class CardDatabase:
         return self.cursor.fetchone()
 
 
-    def get_deck_id_by_name(self, name):
+    def __get_deck_id_by_name(self, name):
         self.cursor.execute('SELECT id FROM decks WHERE name = ?', (name,))
         result = self.cursor.fetchone()
         return result[0] if result else None
     
-    def get_deck_cards(self, deck_id):
+    def __get_deck_cards(self, deck_id):
         self.cursor.execute('''
-            SELECT id, name, image_path 
+            SELECT *
             FROM cards 
             WHERE deck_id = ?
         ''', (deck_id,))
@@ -98,10 +99,11 @@ class CardDatabase:
 
     def get_all_cards_in_deck(self, deckname=None, deck_id=None):
         if deckname:
-            deck_id = self.get_deck_id_by_name(deckname)
+            deck_id = self.__get_deck_id_by_name(deckname)
         if deck_id:
-            cards = self.get_deck_cards(deck_id)
+            cards = self.__get_deck_cards(deck_id)
             return cards
+        return self.get_all_cards()
 
     def get_all_cards(self):
         self.cursor.execute('SELECT * FROM cards')
