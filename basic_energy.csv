@@ -1,0 +1,14 @@
+name,number,set_total,amount,promo
+"Basic Water Energy",3,None,61,False
+"Basic Metal Energy",8,None,49,False
+"Basic Psychic Energy",5,None,32,False
+"Psychic Energy",101,102,5,False
+"Basic Fire Energy",2,None,32,False
+"Fire Energy",98,102,1,False
+"Basic Fighting Energy",6,None,52,False
+"Fighting Energy",97,102,44,False
+"Basic Grass Energy",1,None,52,False
+"Grass Energy",99,102,1,False
+"Basic Lightning Energy",4,None,53,False
+"Lightning Energy",100,102,14,False
+"Basic Darkness Energy",7,None,31,False

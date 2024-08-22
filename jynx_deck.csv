@@ -1,0 +1,25 @@
+name,number,set_total,amount,promo
+"Basic Water Energy",3,None,10,False
+"Water Energy",102,102,11,False
+"Basic Grass Energy",1,None,5,False
+"Gloom",44,165,3,False
+"Golisopod",49,182,3,False
+"Jynx",191,165,2,False
+"Oddish",43,165,3,False
+"Oddish",1,197,1,False
+"Tatsugiri",62,198,1,False
+"Vileplume",45,165,2,False
+"Wimpod",48,182,1,False
+"Wimpod",47,182,2,False
+"Bill's Transfer",156,165,2,False
+"Bug Catching Set",143,167,1,False
+"Energy Sticker",159,165,2,False
+"Nemona",82,91,2,False
+"Nemona's Backpack",83,91,1,False
+"Nest Ball",181,198,1,False
+"Night Stretcher",61,64,2,False
+"Rika",172,182,1,False
+"Switch",144,159,1,False
+"Switch",95,102,1,False
+"Team Star Grunt",195,198,1,False
+"Thorton",167,196,1,False
