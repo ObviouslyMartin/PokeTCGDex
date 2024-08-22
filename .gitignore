@@ -1,3 +1,6 @@
 __pycache__/*
 Pokemon_Cards/*
 .DS_Store
+db_testing.py
+poke_SDK.py
+test_db_backup.db
