@@ -1,22 +1,22 @@
-name,number,set_total,amount,promo
-"Cresselia",74,196,1,False
-"Cresselia",71,64,1,False
-"Drifloon",89,198,3,False
-"Gardevoir ex",86,198,3,False
-"Kirlia",68,195,4,False
-"Lumineon V",40,172,1,False
-"Mew ex",151,165,1,False
-"Radiant Greninja",46,189,1,False
-"Ralts",67,195,4,False
-"Arven",166,198,2,False
-"Boss's Orders",172,193,2,False
-"Iono",185,193,4,False
-"Jacq",175,198,1,False
-"Professor's Research",189,198,3,False
-"Nest Ball",181,198,4,False
-"Super Rod",188,193,1,False
-"Rare Candy",191,198,2,False
-"Ultra Ball",196,198,4,False
-"Bravery Charm",173,193,3,False
-"Artazon",171,193,2,False
-"Basic Psychic Energy",5,None,13,False
+deck_name,card_name,card_number,card_set_total,amount
+Gardevoir,Cresselia,74,196,1
+Gardevoir,Cresselia,71,64,1
+Gardevoir,Drifloon,89,198,3
+Gardevoir,Gardevoir ex,86,198,3
+Gardevoir,Kirlia,68,195,4
+Gardevoir,Lumineon V,40,172,1
+Gardevoir,Mew ex,151,165,1
+Gardevoir,Radiant Greninja,46,189,1
+Gardevoir,Ralts,67,195,4
+Gardevoir,Arven,166,198,2
+Gardevoir,Boss's Orders,172,193,2
+Gardevoir,Iono,185,193,4
+Gardevoir,Jacq,175,198,1
+Gardevoir,Professor's Research,189,198,3
+Gardevoir,Nest Ball,181,198,4
+Gardevoir,Super Rod,188,193,1
+Gardevoir,Rare Candy,191,198,2
+Gardevoir,Ultra Ball,196,198,4
+Gardevoir,Bravery Charm,173,193,3
+Gardevoir,Artazon,171,193,2
+Gardevoir,Basic Psychic Energy,5,8,13
