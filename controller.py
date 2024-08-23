@@ -89,7 +89,7 @@ class Controller:
         if deck_id:
             for _id in card_info["not_in_deck_ids"][:amount]:
                 print(f"moving card_id: {_id} to deck_id: {deck_id}")
-                self.db.move_card_to_deck(deck_id=deck_id, card_id=_id,count=1)
+                self.db.move_card_to_deck(deck_id=deck_id, card_id=_id, count=1)
         else:
             print(f"invalid deck_id: {deck_id}")
         
@@ -127,8 +127,9 @@ class Controller:
         if deck_id != -1:
             # only remove from deck
             card_ids = self.db.get_in_deck_card_ids(card=card,deck_id=deck_id) # tuple of matching cards in deck
+            print(f'card ids in deck {card_ids}')
             for _id in card_ids[:amount]:
-                print(self.db.remove_card_from_deck(deck_id=7, card_id=_id))
+                print(self.db.remove_card_from_deck(deck_id=deck_id, card_id=_id))
             return 
         # view is all cards -> delete from database
         if deck_id == -1:
