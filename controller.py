@@ -60,8 +60,9 @@ class Controller:
                     "card_type": row[4],
                     "sub_type": row[5],
                     "image_path": row[6],
-                    "card_ids":list(map(int, row[7].split(',')))}
-                for row in self.db.get_unique_cards_with_amount(deck_id=deck_id)
+                    "all_card_ids":list(map(int, row[7].split(','))) if row[7] else [],
+                    "not_in_deck_ids":list(map(int, row[8].split(','))) if row[8] else []}
+                for row in self.db.get_cards_with_detailed_amount(deck_id=deck_id)
                 
         ]
         return cards
@@ -84,46 +85,55 @@ class Controller:
         print(f'deck_name: {deck_name}')
         print(f'card_info: {card_info}')
         print(f'amount: {amount}')
-        # find all cards with given name, number, set_total -> list of ids
         deck_id = self.db.get_deck_id_by_name(deck_name)[0]
-        if not deck_id:
-            print("no deck found")
-            return
-        card_ids = self.db.get_card_ids_by_name(card_info["name"], card_info["number"], card_info["set_total"])
-        deck_card_ids = self.db.get_deck_card_ids_by_name(card_info["name"], card_info["number"], card_info["set_total"], deck_id=deck_id)
-
-        print(f'card_ids: {card_ids}')
-        print(f'deck_card_ids: {deck_card_ids}')
+        if deck_id:
+            for _id in card_info["not_in_deck_ids"][:amount]:
+                print(f"moving card_id: {_id} to deck_id: {deck_id}")
+                self.db.move_card_to_deck(deck_id=deck_id, card_id=_id,count=1)
+        else:
+            print(f"invalid deck_id: {deck_id}")
         
-        # add amount of ids to deck for each id not in deck.
-        while amount > 0:
-            for card_id in card_ids:
-                if card_id not in deck_card_ids:
-                    print(f"moving card_id: {card_id} to deck_id: {deck_id}")
-                    self.db.move_card_to_deck(deck_id=deck_id, card_id=card_id,count=1)
-                    deck_card_ids.append(card_id)
-                    amount -= 1
-                    break
+        # # find all cards with given name, number, set_total -> list of ids
+        # deck_id = self.db.get_deck_id_by_name(deck_name)[0]
+        # if not deck_id:
+        #     print("no deck found")
+        #     return
+        # card_ids = self.db.get_card_ids_by_name(card_info["name"], card_info["number"], card_info["set_total"])
+        # deck_card_ids = self.db.get_deck_card_ids_by_name(card_info["name"], card_info["number"], card_info["set_total"], deck_id=deck_id)
 
-    def remove_card(self, deck_id, card_ids):
+        # print(f'card_ids: {card_ids}')
+        # print(f'deck_card_ids: {deck_card_ids}')
+        
+        # # add amount of ids to deck for each id not in deck.
+        # while amount > 0:
+        #     for card_id in card_ids:
+        #         if card_id not in deck_card_ids:
+        
+        #             deck_card_ids.append(card_id)
+        #             amount -= 1
+        #             break
+
+    def remove_card(self, deck_id, card, amount):
         '''
             removes card_ids from decks or from the database entirely
 
         '''
         print("in controller remove_card()")
         print(f'deck_id: {deck_id}')
-        print(f'card_ids: {card_ids}')
-        print(f'amount: {len(card_ids)}')
+        print(f'card: {card}')
 
-        # only remove from deck
+        
+
         if deck_id != -1:
-            for _id in card_ids:
-                self.db.remove_card_from_deck(deck_id=7, card_id=_id)
+            # only remove from deck
+            card_ids = self.db.get_in_deck_card_ids(card=card,deck_id=deck_id) # tuple of matching cards in deck
+            for _id in card_ids[:amount]:
+                print(self.db.remove_card_from_deck(deck_id=7, card_id=_id))
             return 
-        # view is all cards -> delete from database 
+        # view is all cards -> delete from database
         if deck_id == -1:
-            for _id in card_ids:
-                self.db.delete_card(card_id=_id)
+            for _id in card["not_in_deck_ids"][:amount]:
+                print(self.db.delete_card(card_id=_id))
             return
 
     # def get_cards_in_deck(self, deck_id=-1, card_type_filters=[]):

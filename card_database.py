@@ -104,8 +104,63 @@ class CardDatabase:
     ########################################################
     ''' Get things '''
     ########################################################
+    def get_cards_with_detailed_amount(self, deck_id=-1):
+        """
+        Retrieves a list of cards from the cards table and augments each entry with two lists:
+        1) all_card_ids: All card_ids that match name, number, and set_total in the cards table.
+        2) not_in_deck_ids: All card_ids that match name, number, and set_total and are not associated with any deck.
+        
+        If a deck_id is provided, filters the cards to those associated with that deck.
+        """
+        # Common SELECT part of the SQL query
+        base_query = """
+            SELECT 
+                cards.name,
+                cards.number, 
+                cards.set_total,
+                cards.super_type,
+                cards.card_type,
+                cards.sub_type,
+                cards.image_path,
+                GROUP_CONCAT(cards.card_id) as all_card_ids,
+                GROUP_CONCAT(CASE WHEN cards.card_id NOT IN (SELECT deck_cards.card_id FROM deck_cards) THEN cards.card_id ELSE NULL END) as not_in_deck_ids
+            FROM cards
+        """
+        
+        # Conditional WHERE clause depending on whether deck_id is provided
+        if deck_id != -1:
+            # Fetch cards specifically from the given deck
+            query = f"{base_query} JOIN deck_cards ON cards.card_id = deck_cards.card_id WHERE deck_cards.deck_id = ? GROUP BY cards.name, cards.number, cards.set_total"
+            self.cursor.execute(query, (deck_id,))
+        else:
+            # Fetch all cards without deck filtering
+            query = f"{base_query} GROUP BY cards.name, cards.number, cards.set_total"
+            self.cursor.execute(query)
+
+        # Fetch and return results
+        results = self.cursor.fetchall()
+        
+        # Process results to ensure NULL values in not_in_deck_ids are handled as empty lists
+        processed_results = []
+        for row in results:
+            # Convert tuple to list for mutable operations
+            mutable_row = list(row)
+            
+            # Add two new attributes by converting CSV string to list of integers, handle NULL cases
+            all_card_ids = list(map(int, mutable_row[7].split(','))) if mutable_row[7] else []
+            not_in_deck_ids = list(map(int, mutable_row[8].split(','))) if mutable_row[8] else []
+            
+            # Append new attributes
+            mutable_row.append(all_card_ids)
+            mutable_row.append(not_in_deck_ids)
+            
+            # Convert back to tuple if necessary and append to final results
+            processed_results.append(tuple(mutable_row))
+
+        return tuple(processed_results)
     def get_standalone_cards_with_amount(self):
         """
+        DEPRECATED see get_cards_with_detailed_amount(self, deck_id=-1)
         Retrieves a list of cards from the cards table that are not associated with any deck
         and augments each dictionary with an 'amount' key that lists all card_ids with matching
         name, number, and set_total for standalone cards.
@@ -130,11 +185,13 @@ class CardDatabase:
     
     def get_unique_cards_with_amount(self, deck_id=-1):
         """
-        Retrieves a list of unique cards from the cards table (filtered by deck_id if provided)
+        DEPRECATED see get_cards_with_detailed_amount(self, deck_id=-1)
+
+        Retrieves a list of cards from the cards table (filtered by deck_id if provided)
         and augments each dictionary with an 'amount' key that lists all card_ids with matching name, number, and set_total.
         """
         if deck_id != -1:
-            # Fetch cards specifically from the given deck
+            # Fetch cards specifically from the given deck -> Total cards in a deck
             self.cursor.execute('''
                 SELECT 
                     cards.name, 
@@ -151,7 +208,7 @@ class CardDatabase:
                 GROUP BY cards.name, cards.number, cards.set_total
             ''', (deck_id,))
         else:
-            # Fetch all cards without deck filtering
+            # Fetch all cards without deck filtering -> Total cards in the database
             self.cursor.execute('''
                 SELECT 
                     name, 
@@ -180,7 +237,23 @@ class CardDatabase:
         decks = self.cursor.fetchall()
         return decks
     
-    
+    def get_in_deck_card_ids(self, card, deck_id):
+        '''
+            returns a tuple of ids that match the given name number and set_total for the given deck id
+        '''
+        self.cursor.execute(
+            """SELECT
+                deck_cards.card_id
+            FROM deck_cards
+            JOIN cards ON deck_cards.card_id = cards.card_id
+            WHERE cards.name = ? AND cards.number = ? AND cards.set_total = ? AND deck_cards.deck_id = ?
+            """,
+            (card["name"], card["number"], card["set_total"], deck_id)
+        )
+        matching_ids = self.cursor.fetchall()
+
+        return tuple([id[0] for id in matching_ids])
+
     def get_cards_in_deck(self, deck_id):
         '''
             returns deck name with all cards within the deck.
@@ -281,7 +354,7 @@ class CardDatabase:
         ''' return list of ids from cards table with matching name number and set total'''
         self.cursor.execute("SELECT card_id from cards WHERE name = ? AND number = ? and set_total = ?", (name, number, set_total))
         return [_id[0] for _id in self.cursor.fetchall()]
-    def __get_deck_card_ids_by_name(self, name, number, set_total, deck_id) -> list | None:
+    def get_deck_card_ids_by_name(self, name, number, set_total, deck_id) -> list | None:
         '''
             returns list of ids that match the given name, number, and set_total given some deck
         '''
@@ -346,7 +419,7 @@ class CardDatabase:
         return 0
     
     def delete_card(self, card_id):
-
+        print(f"DB: about to delete {card_id}")
         exists = self.__get_card(card_id=card_id)
         if exists:
             return "Card not found"

@@ -159,7 +159,7 @@ class DeckManagerApp(customtkinter.CTk):
             # card_label.image = photo
             card_label.grid(row=row, column=col, padx=5, pady=5)
 
-            count_label = customtkinter.CTkLabel(self.card_display_frame, text=f"x{len(card_info['card_ids'])}", font=customtkinter.CTkFont(size=14))
+            count_label = customtkinter.CTkLabel(self.card_display_frame, text=f"x{len(card_info['all_card_ids'])}", font=customtkinter.CTkFont(size=14))
             count_label.grid(row=row+1, column=col, padx=5, pady=5)
 
             col += 1
@@ -273,25 +273,30 @@ class DeckManagerApp(customtkinter.CTk):
         
 
     def move_card_to_deck_popup(self):
-        if self.selected_deck_id is None:
-            print("Select a deck first")
+        if self.selected_card is None:
+            print("Select a card first")
             return
 
         self.move_card_window = customtkinter.CTkToplevel(self)
         self.move_card_window.title("Move Card")
 
+        self.warning_label = customtkinter.CTkLabel(self.move_card_window, text=f'Are you sure you want to move?\n{self.selected_card["name"]}, {self.selected_card["number"]}/{self.selected_card["set_total"]}')
+        self.warning_label.grid(row=1, column=0, padx=10, pady=10)
+
         self.deck_name_label = customtkinter.CTkLabel(self.move_card_window, text="Deck Name:")
-        self.deck_name_label.grid(row=1, column=0, padx=10, pady=10)
+        self.deck_name_label.grid(row=2, column=0, padx=10, pady=10)
+
         self.deck_name_entry = customtkinter.CTkEntry(self.move_card_window)
-        self.deck_name_entry.grid(row=1, column=1, padx=10, pady=10)
+        self.deck_name_entry.grid(row=2, column=1, padx=10, pady=10)
         
         self.amount_to_add_label = customtkinter.CTkLabel(self.move_card_window, text="Amount to add:")
-        self.amount_to_add_label.grid(row=2, column=0, padx=10, pady=10)
+        self.amount_to_add_label.grid(row=3, column=0, padx=10, pady=10)
+        
         self.amount_to_add_entry = customtkinter.CTkEntry(self.move_card_window)
-        self.amount_to_add_entry.grid(row=2, column=1, padx=10, pady=10)
+        self.amount_to_add_entry.grid(row=3, column=1, padx=10, pady=10)
 
         self.submit_button = customtkinter.CTkButton(self.move_card_window, text="Confirm", command=self.move_card_to_deck_confirm_button_press_event)
-        self.submit_button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
+        self.submit_button.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
 
     def add_card_button_press_event(self):
         ''' 
@@ -324,7 +329,7 @@ class DeckManagerApp(customtkinter.CTk):
     def remove_card_button_press_event(self):
         deck_id = self.selected_deck_id
         amount = int(self.amount_to_remove_entry.get())
-        self.controller.remove_card(deck_id=deck_id, card_ids=self.selected_card["card_ids"][:amount])
+        self.controller.remove_card(deck_id=deck_id, card=self.selected_card, amount=amount)
         self.selected_card = None
         self.current_cards = None
         self.display_cards()
@@ -336,7 +341,7 @@ class DeckManagerApp(customtkinter.CTk):
     def card_picture_press_event(self, card_info):
         print(card_info)
         self.selected_card = card_info
-        self.selected_card_label.configure(text=f'{self.selected_card["name"]}, {self.selected_card["number"]}/{self.selected_card["set_total"]}')
+        self.selected_card_label.configure(text=f'{self.selected_card["name"]}, {self.selected_card["number"]}/{self.selected_card["set_total"]}') if self.selected_card else ""
 
 if __name__ == '__main__':
     dma = DeckManagerApp()
