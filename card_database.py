@@ -1,4 +1,5 @@
 import sqlite3
+import csv
 from CardGenerator import CardGenerator
 
 class CardDatabase:
@@ -152,8 +153,8 @@ class CardDatabase:
             not_in_deck_ids = list(map(int, mutable_row[8].split(','))) if mutable_row[8] else []
             
             # Append new attributes
-            mutable_row.append(all_card_ids)
-            mutable_row.append(not_in_deck_ids)
+            mutable_row[7] = (all_card_ids)
+            mutable_row[8] = (not_in_deck_ids)
             
             # Convert back to tuple if necessary and append to final results
             processed_results.append(tuple(mutable_row))
@@ -453,7 +454,7 @@ class CardDatabase:
         ret_string = self.__show_decks_table() + self.__show_cards_table() 
         ret_string += f'\nTotal Cards: {self.get_total_card_count()[0]}'
         ret_string += f'\nTotal Decks: {self.get_total_deck_count()[0]}'
-        ret_string += self.__show_deck_cards_table(deck_id=1)
+        # ret_string += self.__show_deck_cards_table(deck_id=1)
         return ret_string
     
     def show_cards(self):
@@ -528,17 +529,6 @@ class CardDatabase:
         self.cursor.execute("SELECT deck_id FROM decks WHERE deck_id = ?", (deck_id,))
         return self.cursor.fetchone()
 
-    # def __get_card(self, card_id)-> tuple | None:
-    #     '''returns the matching row if found. else none.'''
-
-    #     self.cursor.execute(
-    #         """SELECT 
-    #                 *,
-    #                 GROUP_CONCAT(card_id) as card_ids
-    #             FROM cards
-    #             WHERE card_id = ?
-    #             GROUP BY name, number, set_total""", (card_id,))
-    #     return self.cursor.fetchone()
     def __check_card(self, card_id):
         self.cursor.execute(
             """SELECT * FROM cards WHERE card_id = ?""",
@@ -546,6 +536,51 @@ class CardDatabase:
         )
         card_details = self.cursor.fetchone()
         return card_details
+    def get_card_info_by_name(self, name, number, set_total):
+        """
+        Retrieves details for a specific card identified by name, number, and set_total from the cards table
+        and augments the entry with two lists:
+        1) all_card_ids: All card_ids that match the specified name, number, and set_total in the cards table.
+        2) not_in_deck_ids: All card_ids that match the specified name, number, and set_total and are not associated with any deck.
+        """
+        # SQL query to fetch the specified card details along with all matching card_ids
+        query = """
+            SELECT 
+                name,
+                number, 
+                set_total,
+                super_type,
+                card_type,
+                sub_type,
+                image_path,
+                GROUP_CONCAT(card_id) as all_card_ids,
+                GROUP_CONCAT(CASE WHEN card_id NOT IN (SELECT card_id FROM deck_cards) THEN card_id ELSE NULL END) as not_in_deck_ids
+            FROM cards
+            WHERE name = ? AND number = ? AND set_total = ?
+            GROUP BY name, number, set_total
+        """
+        self.cursor.execute(query, (name, number, set_total))
+        
+        # Fetch and return results
+        result = self.cursor.fetchone()
+        
+        if result:
+            # Convert tuple to list for mutable operations
+            mutable_row = list(result)
+            
+            # Add two new attributes by converting CSV string to list of integers, handle NULL cases
+            all_card_ids = list(map(int, mutable_row[7].split(','))) if mutable_row[7] else []
+            not_in_deck_ids = list(map(int, mutable_row[8].split(','))) if mutable_row[8] else []
+            
+            # Append new attributes
+            mutable_row[7] = (all_card_ids)
+            mutable_row[8] = (not_in_deck_ids)
+            
+            # Convert back to tuple if necessary
+            return tuple(mutable_row)
+        else:
+            return None  # No such card found
+    
     def __get_card(self, card_id):
         """
         Retrieves all attributes for a given card_id and a list of all matching card_ids 
@@ -726,11 +761,46 @@ class CardDatabase:
         for row in deck_cards_table:
             out_string += f"{row}\n"
         return out_string
-    # def execute(self, query):
-        
-        
-    #     return 
+    def to_csv(self):
+        self.__generate_cards_csv()
+        self.__generate_decks_csv()
+
+    def __generate_cards_csv(self):
+        query = """
+            SELECT name, number, set_total, COUNT(*) as amount
+            FROM cards
+            GROUP BY name, number, set_total
+        """
+        self.cursor.execute(query)
+        rows = self.cursor.fetchall()
+
+        with open('cards.csv', 'w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(['name', 'number', 'set_total', 'amount'])
+            writer.writerows(rows)
+
+    def __generate_decks_csv(self):
+        # Modified SQL query to include the count of matching cards within each deck
+        query = """
+            SELECT 
+                decks.name as deck_name, 
+                cards.name as card_name, 
+                cards.number as card_number, 
+                cards.set_total as card_set_total,
+                COUNT(*) as amount
+            FROM deck_cards
+            JOIN decks ON deck_cards.deck_id = decks.deck_id
+            JOIN cards ON deck_cards.card_id = cards.card_id
+            GROUP BY decks.deck_id, cards.name, cards.number, cards.set_total
+        """
+        self.cursor.execute(query)
+        rows = self.cursor.fetchall()
+
+        with open('decks.csv', 'w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(['deck_name', 'card_name', 'card_number', 'card_set_total', 'amount'])  # Include the header for amount
+            writer.writerows(rows)
+
 
 if __name__ == '__main__':
-    # db = 'test_db.db'
-    db = CardDatabase()
+    print("nothing to run")

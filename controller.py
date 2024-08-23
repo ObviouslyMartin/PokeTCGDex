@@ -1,6 +1,7 @@
+
 from card_database import CardDatabase
 from CardGenerator import CardGenerator
-# import csv TODO: Create Export as / Import from CSV
+import csv
 
 class Controller:
     def __init__(self) -> None:
@@ -53,18 +54,19 @@ class Controller:
         returns list of dictionaries of unique cards
         '''
         cards = [
-                    {"name": row[0],
-                    "number": row[1],
-                    "set_total": row[2],
-                    "super_type": row[3],
-                    "card_type": row[4],
-                    "sub_type": row[5],
-                    "image_path": row[6],
-                    "all_card_ids":list(map(int, row[7].split(','))) if row[7] else [],
-                    "not_in_deck_ids":list(map(int, row[8].split(','))) if row[8] else []}
+                    {
+                        "name": row[0],
+                        "number": row[1],
+                        "set_total": row[2],
+                        "super_type": row[3],
+                        "card_type": row[4],
+                        "sub_type": row[5],
+                        "image_path": row[6],
+                        "all_card_ids":row[7],
+                        "not_in_deck_ids":row[8]
+                    }
                 for row in self.db.get_cards_with_detailed_amount(deck_id=deck_id)
-                
-        ]
+                ]
         return cards
             
     
@@ -93,25 +95,6 @@ class Controller:
         else:
             print(f"invalid deck_id: {deck_id}")
         
-        # # find all cards with given name, number, set_total -> list of ids
-        # deck_id = self.db.get_deck_id_by_name(deck_name)[0]
-        # if not deck_id:
-        #     print("no deck found")
-        #     return
-        # card_ids = self.db.get_card_ids_by_name(card_info["name"], card_info["number"], card_info["set_total"])
-        # deck_card_ids = self.db.get_deck_card_ids_by_name(card_info["name"], card_info["number"], card_info["set_total"], deck_id=deck_id)
-
-        # print(f'card_ids: {card_ids}')
-        # print(f'deck_card_ids: {deck_card_ids}')
-        
-        # # add amount of ids to deck for each id not in deck.
-        # while amount > 0:
-        #     for card_id in card_ids:
-        #         if card_id not in deck_card_ids:
-        
-        #             deck_card_ids.append(card_id)
-        #             amount -= 1
-        #             break
 
     def remove_card(self, deck_id, card, amount):
         '''
@@ -121,8 +104,6 @@ class Controller:
         print("in controller remove_card()")
         print(f'deck_id: {deck_id}')
         print(f'card: {card}')
-
-        
 
         if deck_id != -1:
             # only remove from deck
@@ -136,67 +117,42 @@ class Controller:
             for _id in card["not_in_deck_ids"][:amount]:
                 print(self.db.delete_card(card_id=_id))
             return
-
-    # def get_cards_in_deck(self, deck_id=-1, card_type_filters=[]):
-        # self.cursor.execute("SELECT * FROM deck_cards where deck_id = ?", (deck_id,))
-        # deck_name = self.get_deck(deck_id=deck_id)
-        # if deck_name is None:
-        #     return {}
-        
-        # cards = self.db.get_cards_in_deck(deck_id=deck_id)
-        # if cards is None:
-        #     return {}
-        # decks = decks[cards] = [
-        #     {"id": card_id, "name": name, "number":number, "set_total":set_total, "image_path":image_path, "count": count} for card_id, name, number, set_total, image_path, count in cards
-        # ]
-        # cards = {
-        #     row[0]: {                               # id
-        #         "name": row[1],
-        #         "number": row[2],
-        #         "set_total": row[3],
-        #         "super_type": row[4],
-        #         "card_type": row[5],
-        #         "sub_type": row[6],
-        #         "image_url": row[7],
-        #         "image_path": row[8]
-        #     }
-        #     for row in self.db.get_cards_in_deck(deck_id=deck_id)
-        # }
-        # return cards
-        # deck = {
-        #     :[
-        #             {
-        #                 "name": card[2],
-        #                 "number": card[3],
-        #                 "set_total":card[4],
-        #                 "image_path": card[5],
-        #                 "super_type": card[6],
-        #                 "amount": card[7]
-        #             }
-        #         ] for card in cards
-        # }
-        
-        # return deck
-    # def parse_value(value, value_type):
-    #     if value == 'None':
-    #         return None
-    #     if value_type == int:
-    #         return int(value)
-    #     if value_type == bool:
-    #         return value == 'True'
-    #     return value
     
-    # def read_file(self, input_file) -> list:
-    #     card_list = []
-    #     with open(input_file, mode='r', newline='', encoding='utf-8') as file:
-    #         csv_reader = csv.DictReader(file)
-    #         for row in csv_reader:
-    #             parsed_row = {
-    #                 'name': row['name'],
-    #                 'number': self.parse_value(row['number'], int),
-    #                 'set_total': self.parse_value(row['set_total'], int),
-    #                 'amount': self.parse_value(row['amount'], int),
-    #                 'promo': self.parse_value(row['promo'], bool)
-    #             }
-    #             card_list.append(parsed_row)
-    #     return card_list
+    
+    def load_cards_from_csv(self, csv_file='cards.csv'):
+        '''
+            import cards from csv. 
+            name,number,set_total,amount
+        '''
+        with open(csv_file, newline='', encoding='utf-8') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                self.add_to_db_from_input(card_name=row['name'], card_number=row['number'], set_total=row['set_total'], amount=row['amount'])
+    
+    def load_decks_from_csv(self, csv_file='decks.csv'):
+        '''
+            for each card, find the card in the databse using the csv to get atributes (mimic clicking on a card)
+            then pass that card_info to self.move_card_to_deck
+        '''
+        print(f'in controller load_decks csv_file: {csv_file}')
+        with open(csv_file, newline='', encoding='utf-8') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                db_card = self.db.get_card_info_by_name(name=row['name'], number=row['number'], set_total=row['set_total'])
+                card_info = {
+                    "name": db_card[0],
+                    "number": db_card[1],
+                    "set_total": db_card[2],
+                    "super_type": db_card[3],
+                    "card_type": db_card[4],
+                    "sub_type": db_card[5],
+                    "image_path": db_card[6],
+                    "all_card_ids": db_card[7],
+                    "not_in_deck_ids":db_card[8]
+                    }
+                deck_exists = self.db.get_deck_id_by_name(row['deck_name'])
+                if not deck_exists:
+                    print(f"deck name: {row['deck_name']} does not exist. Creating new deck...")
+                    self.db.create_deck(deck_name=row['deck_name'])
+                print(f"moving {card_info['name']}, {card_info['number']}/{card_info['set_total']} to deck: {row['deck_name']}")
+                self.move_card_to_deck(deck_name=row['deck_name'], card_info=card_info, amount=int(row['amount']))

@@ -2,7 +2,6 @@ import customtkinter
 import os
 from PIL import Image
 from card_database import CardDatabase
-from collections import defaultdict
 from controller import Controller
 
 
@@ -67,7 +66,7 @@ class DeckManagerApp(customtkinter.CTk):
         self.deck_combobox.grid(row=2, column=0, padx=20, pady=10, sticky="nswe")
 
         # selected card text
-        self.selected_card = "Selected Card Text"
+        self.selected_card = ""
         self.selected_card_label = customtkinter.CTkLabel(self.navigation_frame, text=self.selected_card)
         self.selected_card_label.grid(row=7, column=0, padx=10, pady=10)
 
@@ -123,6 +122,10 @@ class DeckManagerApp(customtkinter.CTk):
         self.remove_card_to_deck_button = customtkinter.CTkButton(self.navigation_frame, text="Remove Card From Deck", command=self.remove_card_popup)
         self.remove_card_to_deck_button.grid(row=6, column=0, padx=20, pady=5, sticky="s")
 
+        # Main view Import From File Button
+        self.import_from_file_button = customtkinter.CTkButton(self.navigation_frame, text="Import From File", command=self.import_from_file_popup)
+        self.import_from_file_button.grid(row=7, column=0, padx=20, pady=5, sticky="s")
+        
         # load cards and decks
         self.load_decks()
         self.display_cards()
@@ -297,6 +300,26 @@ class DeckManagerApp(customtkinter.CTk):
 
         self.submit_button = customtkinter.CTkButton(self.move_card_window, text="Confirm", command=self.move_card_to_deck_confirm_button_press_event)
         self.submit_button.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
+    
+    def import_from_file_popup(self):
+        self.import_file_window = customtkinter.CTkToplevel(self)
+        self.import_file_window.title("Import From File")
+
+
+        self.card_file_name_label = customtkinter.CTkLabel(self.import_file_window, text="Card File Name:")
+        self.card_file_name_label.grid(row=1, column=0, padx=10, pady=10)
+
+        self.card_file_name_entry = customtkinter.CTkEntry(self.import_file_window)
+        self.card_file_name_entry.grid(row=1, column=1, padx=10, pady=10)
+
+        self.deck_file_name_label = customtkinter.CTkLabel(self.import_file_window, text="Deck File Name:")
+        self.deck_file_name_label.grid(row=2, column=0, padx=10, pady=10)
+
+        self.deck_file_name_entry = customtkinter.CTkEntry(self.import_file_window)
+        self.deck_file_name_entry.grid(row=2, column=1, padx=10, pady=10)
+
+        self.import_button = customtkinter.CTkButton(self.import_file_window, text="Import", command=self.file_import_confirm_button_press_event)
+        self.import_button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
 
     def add_card_button_press_event(self):
         ''' 
@@ -334,7 +357,24 @@ class DeckManagerApp(customtkinter.CTk):
         self.current_cards = None
         self.display_cards()
         self.remove_card_window.destroy()
-        
+
+    def file_import_confirm_button_press_event(self):
+        card_file_name = self.card_file_name_entry.get()
+        deck_file_name = self.deck_file_name_entry.get()
+
+        if not card_file_name and not deck_file_name:
+            print("missing file names")
+            self.remove_card_window.destroy()
+            return
+
+        if card_file_name:
+            self.controller.load_cards_from_csv(csv_file="card_input_csvs/"+card_file_name)
+
+        if deck_file_name:
+            self.controller.load_decks_from_csv(csv_file="card_input_csvs/"+deck_file_name)
+        self.current_cards = None
+        self.display_cards()
+        self.import_file_window.destroy()
     def change_appearance_mode_event(self, new_appearance_mode):
         customtkinter.set_appearance_mode(new_appearance_mode)
 

@@ -5,3 +5,5 @@ db_testing.py
 poke_SDK.py
 test_db_backup.db
 test_db.db
+cards.csv
+decks.csv
