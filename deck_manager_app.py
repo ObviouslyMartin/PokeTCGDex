@@ -291,7 +291,7 @@ class DeckManagerApp(customtkinter.CTk):
         
         self.amount_to_add_label = customtkinter.CTkLabel(self.move_card_window, text="Amount to add:")
         self.amount_to_add_label.grid(row=3, column=0, padx=10, pady=10)
-        
+
         self.amount_to_add_entry = customtkinter.CTkEntry(self.move_card_window)
         self.amount_to_add_entry.grid(row=3, column=1, padx=10, pady=10)
 
@@ -310,8 +310,8 @@ class DeckManagerApp(customtkinter.CTk):
 
         if name and number:
             self.controller.add_to_db_from_input(card_name=name, card_number=number, set_total=set_total, amount=amount, is_promo=is_promo)
+            self.current_cards = None
             self.display_cards()
-            self.add_card_window.destroy()
         else:
             print("Name and number are required to add a card")
 

@@ -69,15 +69,16 @@ class CardDatabase:
         self.conn.commit()
         return card_id
 
-    def move_card_to_deck(self, deck_id, card_id,count):
+    def move_card_to_deck(self, deck_id, card_id, count):
         
         if not self.__deck_exists(deck_id):
             return "Deck does not exist"
+        
         if not self.__get_card(card_id):
             return "Card does not exist"
 
-        if not self.__has_sufficient_card_count(card_id, count):
-            return "Not enough cards available"
+        # if not self.__has_sufficient_card_count(card_id, count):
+        #     return "Not enough cards available"
 
         if not self.__can_add_to_deck(deck_id, card_id, count):
             return "Cannot add more than 4 of the same card or exceed the deck limit of 60 cards"
@@ -420,8 +421,8 @@ class CardDatabase:
     
     def delete_card(self, card_id):
         print(f"DB: about to delete {card_id}")
-        exists = self.__get_card(card_id=card_id)
-        if exists:
+        exists = self.__check_card(card_id=card_id)
+        if not exists:
             return "Card not found"
 
         self.cursor.execute(
@@ -538,6 +539,13 @@ class CardDatabase:
     #             WHERE card_id = ?
     #             GROUP BY name, number, set_total""", (card_id,))
     #     return self.cursor.fetchone()
+    def __check_card(self, card_id):
+        self.cursor.execute(
+            """SELECT * FROM cards WHERE card_id = ?""",
+            (card_id,)
+        )
+        card_details = self.cursor.fetchone()
+        return card_details
     def __get_card(self, card_id):
         """
         Retrieves all attributes for a given card_id and a list of all matching card_ids 
