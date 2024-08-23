@@ -6,7 +6,7 @@ from collections import defaultdict
 from controller import Controller
 
 
-# The Model
+# The View
 class DeckManagerApp(customtkinter.CTk):
     WINDOW_HEIGHT = 720
     WINDOW_WIDTH = 1280

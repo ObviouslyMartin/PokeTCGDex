@@ -579,9 +579,30 @@ class CardDatabase:
         else:
             print("No such card found with the given card_id")
             return None
-    def __get_deck_card_count(self, deck_id, card_id)-> tuple | None:
-        self.cursor.execute("SELECT count FROM deck_cards WHERE deck_id = ? AND card_id = ?", (deck_id, card_id))
-        return self.cursor.fetchone()
+    def __get_deck_card_count(self, deck_id, card_id):
+        # First, fetch the name, number, and set_total of the card with the given card_id
+        self.cursor.execute("""
+            SELECT name, number, set_total 
+            FROM cards 
+            WHERE card_id = ?
+        """, (card_id,))
+        card_details = self.cursor.fetchone()
+
+        if card_details:
+            # Unpack the details
+            name, number, set_total = card_details
+
+            # Now, count how many such cards exist in the specified deck
+            self.cursor.execute("""
+                SELECT COUNT(*) 
+                FROM deck_cards
+                JOIN cards ON deck_cards.card_id = cards.card_id
+                WHERE deck_cards.deck_id = ? AND cards.name = ? AND cards.number = ? AND cards.set_total = ?
+            """, (deck_id, name, number, set_total))
+            count_result = self.cursor.fetchone()
+            return count_result if count_result else (0,)
+        else:
+            return (0,)  # No such card found
     
     def __get_card_count(self, card_id, deck_id=None):
         """Counts cards with the same name, number, and set_total as the card with the given card_id.
@@ -659,7 +680,7 @@ class CardDatabase:
             return True
         
         # Check current number of this card in the deck
-        current_card_count = self.__get_deck_card_count(deck_id, card_id) or 0 # TODO: 'or'?
+        current_card_count = self.__get_deck_card_count(deck_id, card_id)[0]
         if current_card_count + count > 4:
             return False
 
