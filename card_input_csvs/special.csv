@@ -1,0 +1,14 @@
+name,number,set_total,amount,promo
+Charizard ex,199,165,2,False
+Charizard ex,228,197,1,False
+Magneton,11,62,1,False
+Drifblim,156,91,1,False
+Pikachu,131,91,1,False
+Eevee,188,167,1,False
+Iono,237,91,1,False
+Machamp,8,102,1,False
+Mew ex,53,None,1,True
+Mewtwo,52,None,1,True
+Mew ex,151,165,1,False
+Squirtle,170,165,1,False
+Mew ex,205,165,1,False

@@ -45,8 +45,7 @@ class Controller:
         
     def get_card(self, card_id):
         card = self.db.get_card_by_id(card_id=card_id)
-        return {"name": card[1], "number": card[2], "set_total": card[3], "super_type":card[4], "card_type": card[5], "sub_type":card[6]}
-
+        return {"name": card[1], "number": card[2], "set_total": card[3], "super_type":card[4], "card_type": card[5], "sub_type":card[6], "rarity":card[9]}
     
     def get_cards(self, deck_id=-1, card_type_filter=[]):
         '''
@@ -63,7 +62,8 @@ class Controller:
                         "sub_type": row[5],
                         "image_path": row[6],
                         "all_card_ids":row[7],
-                        "not_in_deck_ids":row[8]
+                        "not_in_deck_ids":row[8],
+                        "rarity":row[9]
                     }
                 for row in self.db.get_cards_with_detailed_amount(deck_id=deck_id)
                 ]
@@ -127,7 +127,13 @@ class Controller:
         with open(csv_file, newline='', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
-                self.add_to_db_from_input(card_name=row['name'], card_number=row['number'], set_total=row['set_total'], amount=row['amount'])
+                name=row['name']
+                number=row['number']
+                set_total=row['set_total'] if row['set_total'] != "None" else None
+                amount=row['amount']
+                promo=row['promo']
+                    
+                self.add_to_db_from_input(card_name=name, card_number=number, set_total=set_total, amount=amount, is_promo=promo)
     
     def load_decks_from_csv(self, csv_file='decks.csv'):
         '''
@@ -138,7 +144,7 @@ class Controller:
         with open(csv_file, newline='', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
-                db_card = self.db.get_card_info_by_name(name=row['name'], number=row['number'], set_total=row['set_total'])
+                db_card = self.db.get_card_info_by_name(name=row['name'], number=row['number'])
                 card_info = {
                     "name": db_card[0],
                     "number": db_card[1],

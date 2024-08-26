@@ -373,8 +373,10 @@ class DeckManagerApp(customtkinter.CTk):
         if deck_file_name:
             self.controller.load_decks_from_csv(csv_file="card_input_csvs/"+deck_file_name)
         self.current_cards = None
+        self.load_decks()
         self.display_cards()
         self.import_file_window.destroy()
+        
     def change_appearance_mode_event(self, new_appearance_mode):
         customtkinter.set_appearance_mode(new_appearance_mode)
 
