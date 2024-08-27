@@ -21,8 +21,12 @@ class CardGenerator:
         else:
             raise ValueError("Invalid input parameters")
 
-        tcg_card = Card.where(q=query)[0].to_dict()
-
+        try:
+            tcg_card = Card.where(q=query)[0].to_dict()
+        except:
+            print(f"failed to find {name}, {number}")
+            return {}
+        
         set_id = tcg_card.get("set", {}).get("id", "none")
         set_name = tcg_card.get("set", {}).get("name", "none")
         set_series = tcg_card.get("set", {}).get("series", "none")
