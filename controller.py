@@ -14,12 +14,14 @@ class Controller:
         Input from: DeckManagerApp.add_card_button_press_event()
         '''
         card_ids_added = [] # for reference regarding added cards
-        
+        failed_cards = []
         # Find card from sdk and then store in databse, input might be incorrect yielding no sdk_card
         try:
             # query pokemon tcg sdk
             sdk_card = self.card_generator.get_card_details(name=card_name, number=card_number, set_total=set_total, promo=is_promo)
-            
+            if not sdk_card:
+                print("contoller.add_to_db_from_input :: bad input")
+                return 
             # add amount of cards to the database
             for _ in range(int(amount)):
                 db_card_id = self.db.add_card(sdk_card)
@@ -30,7 +32,7 @@ class Controller:
         except:
             print("error in Controller.add_to_db_from_input()")
             # print(sdk_card)
-            print(f'db_card_id: {db_card_id}, card_name: {card_name}\ncard_number: {card_number}\nset_total: {set_total}\nis_promo: {is_promo}')
+            # print(f'db_card_id: {db_card_id}, card_name: {card_name}\ncard_number: {card_number}\nset_total: {set_total}\nis_promo: {is_promo}')
             return
         
     def create_deck_from_input(self, deck_name) -> int:
@@ -131,7 +133,11 @@ class Controller:
                 number=row['number']
                 set_total=row['set_total'] if row['set_total'] != "None" else None
                 amount=row['amount']
-                promo=row['promo']
+                try:
+                    promo=row['promo']
+                except KeyError:
+                    promo=False
+                
                     
                 self.add_to_db_from_input(card_name=name, card_number=number, set_total=set_total, amount=amount, is_promo=promo)
     
