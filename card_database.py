@@ -1,5 +1,7 @@
 import sqlite3
 import csv
+import pandas as pd
+import io
 from CardGenerator import CardGenerator
 
 class CardDatabase:
@@ -63,6 +65,24 @@ class CardDatabase:
             FOREIGN KEY (card_id) REFERENCES cards (id) ON DELETE CASCADE
         );
         ''')
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS abilities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            type TEXT NOT NULL
+        );
+        ''')
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS card_abilities (
+            card_id INTEGER,
+            ability_id INTEGER,
+            PRIMARY KEY (ability_id, card_id),
+            FOREIGN KEY (ability_id) REFERENCES abilities (id) ON DELETE CASCADE,
+            FOREIGN KEY (card_id) REFERENCES cards (id) ON DELETE CASCADE
+        );
+        ''')
+        
         self.conn.commit()
         # self.conn.close()
         
@@ -89,6 +109,8 @@ class CardDatabase:
         )
         card_id = self.cursor.lastrowid  # Get the last inserted id
         self.__update_sets(new_card["set_id"], new_card["set_name"], new_card["set_series"], new_card["set_image_url"], new_card["set_image_path"],card_id=card_id)
+        if new_card["ability"] is not None: # TODO: Handle updating ability tables when new card is added
+            self.__update_abilities(new_card["ability"], card_id=card_id)
         self.conn.commit()
         return card_id
 
@@ -125,22 +147,11 @@ class CardDatabase:
         self.conn.commit()
         return deck_id
     
-    def __add_card_to_set(self, set_uid, card_id):
-
-        self.cursor.execute(
-            "INSERT INTO set_cards (set_id, card_id) VALUES (?, ?)",
-            (set_uid, card_id)
-        )
-        
-        self.conn.commit()
-        return "Card added to set successfully"
     
     ########################################################
     ''' Get things '''
     ########################################################
-    def __find_set(self, set_id):
-        self.cursor.execute("""SELECT * from sets where set_id = ?""", (set_id,))
-        return self.cursor.fetchone()
+    
     def get_cards_with_detailed_amount(self, deck_id=-1):
         """
         Retrieves a list of cards from the cards table and augments each entry with two lists:
@@ -151,7 +162,7 @@ class CardDatabase:
         """
         # Common SELECT part of the SQL query
         base_query = """
-            SELECT 
+            SELECT
                 cards.name,
                 cards.number, 
                 cards.set_total,
@@ -161,7 +172,8 @@ class CardDatabase:
                 cards.image_path,
                 GROUP_CONCAT(cards.id) as all_card_ids,
                 GROUP_CONCAT(CASE WHEN cards.id NOT IN (SELECT deck_cards.card_id FROM deck_cards) THEN cards.id ELSE NULL END) as not_in_deck_ids,
-                cards.rarity
+                cards.rarity,
+                cards.id
             FROM cards
         """
         
@@ -196,72 +208,6 @@ class CardDatabase:
             processed_results.append(tuple(mutable_row))
 
         return tuple(processed_results)
-    def get_standalone_cards_with_amount(self):
-        """
-        DEPRECATED see get_cards_with_detailed_amount(self, deck_id=-1)
-        Retrieves a list of cards from the cards table that are not associated with any deck
-        and augments each dictionary with an 'amount' key that lists all card_ids with matching
-        name, number, and set_total for standalone cards.
-        """
-        # Fetch standalone cards not linked to any deck
-        self.cursor.execute('''
-            SELECT 
-                name,
-                number, 
-                set_total,
-                super_type,
-                card_type,
-                sub_type,
-                image_path,
-                GROUP_CONCAT(card_id) as card_ids
-            FROM cards
-            WHERE card_id NOT IN (SELECT card_id FROM deck_cards)
-            GROUP BY name, number, set_total
-        ''')
-
-        return self.cursor.fetchall()
-    
-    def get_unique_cards_with_amount(self, deck_id=-1):
-        """
-        DEPRECATED see get_cards_with_detailed_amount(self, deck_id=-1)
-
-        Retrieves a list of cards from the cards table (filtered by deck_id if provided)
-        and augments each dictionary with an 'amount' key that lists all card_ids with matching name, number, and set_total.
-        """
-        if deck_id != -1:
-            # Fetch cards specifically from the given deck -> Total cards in a deck
-            self.cursor.execute('''
-                SELECT 
-                    cards.name, 
-                    cards.number, 
-                    cards.set_total, 
-                    cards.super_type, 
-                    cards.card_type, 
-                    cards.sub_type, 
-                    cards.image_path,
-                    GROUP_CONCAT(cards.id) as card_ids
-                FROM cards
-                JOIN deck_cards ON cards.id = deck_cards.card_id
-                WHERE deck_cards.deck_id = ?
-                GROUP BY cards.name, cards.number, cards.set_total
-            ''', (deck_id,))
-        else:
-            # Fetch all cards without deck filtering -> Total cards in the database
-            self.cursor.execute('''
-                SELECT 
-                    name, 
-                    number, 
-                    set_total,
-                    super_type,
-                    card_type,
-                    sub_type,
-                    image_path,
-                    GROUP_CONCAT(card_id) as card_ids
-                FROM cards
-                GROUP BY name, number, set_total
-            ''')
-
-        return (self.cursor.fetchall())
      
     def get_decks(self, deck_id=-1):
         '''
@@ -291,141 +237,26 @@ class CardDatabase:
         matching_ids = self.cursor.fetchall()
 
         return tuple([id[0] for id in matching_ids])
-
-    def get_cards_in_deck(self, deck_id):
-        '''
-            returns deck name with all cards within the deck.
-        '''
-        # self.cursor.execute("SELECT * FROM deck_cards where deck_id = ?", (deck_id,))
-        # deck = self.cursor.fetchone()
-        # if deck is None:
-        #     return {}
-        # deck_id = deck[0]
-        # deck_name = deck[1]
-        self.cursor.execute(
-            """SELECT
-                cards.name AS card_name,
-                cards.number,
-                cards.set_total,
-                cards.super_type,
-                cards.card_type,
-                cards.sub_type,
-                cards.image_path,
-                COUNT(*) AS count
-            FROM
-                deck_cards
-            JOIN
-                cards ON deck_cards.card_id = cards.id
-            JOIN
-                decks ON deck_cards.deck_id = decks.id
-            WHERE
-                deck_cards.deck_id = ?
-            GROUP BY
-                cards.name, cards.number, cards.set_total""",
-            (deck_id,)
-        )
-        deck_cards = self.cursor.fetchall()
-        for card in deck_cards:
-            print(f'jebi: {card}')
-        return deck_cards
-        # cards = {
-        #     row[0]: {
-        #         "name": row[1],
-        #         "number": row[2],
-        #         "set_total": row[3],
-        #         "image_path": row[4],
-        #         "count": row[5],
-        #         "super_type":row[6]
-        #     }
-        #     for row in deck_cards
-        # }
-        # # return cards  
-        
-        # decks = decks[deck_name] = [
-        #     {"id": card_id, "name": name, "number":number, "set_total":set_total, "image_path":image_path, "count": count} for card_id, name, number, set_total, image_path, count in deck_cards
-        # ]
-        
-        # # return decks
-    def get_decks_with_cards(self):
-        '''Gets all decks and show cards'''
-        self.cursor.execute("SELECT * FROM decks")
-        decks = {}
-        
-        for row in self.cursor.fetchall():
-            deck_id = row[0]
-            deck_name = row[1]
-            self.cursor.execute(
-                """SELECT
-                    cards.id,
-                    cards.name,
-                    cards.number,
-                    cards.set_total,
-                    cards.image_path,
-                    deck_cards.count
-                FROM deck_cards
-                JOIN cards ON deck_cards.card_id = cards.id
-                WHERE deck_cards.deck_id = ?""",
-                (deck_id,)
-            )
-            deck_cards = self.cursor.fetchall()
-            decks[deck_name] = [
-                {"id": card_id, "name": name, "number":number, "set_total":set_total, "image_path":image_path, "count": count} for card_id, name, number, set_total, image_path, count in deck_cards
-            ]
-        
-        return decks
     
     def get_deck_id_by_name(self, deck_name) -> tuple | None:
         self.cursor.execute("SELECT id FROM decks WHERE name = ?", (deck_name,))
         return self.cursor.fetchone()
     
-    def get_card_id_by_name(self, name, number) -> int | None:
-        self.cursor.execute("SELECT id FROM cards WHERE name = ? AND number = ?", (name,number))
-        return self.cursor.fetchone()
-    def get_card_ids_by_name(self, name, number, set_total, deck_id=-1) -> list | None:
-        '''
-            returns list of ids that match the given name, number, and set_total
-        '''
-        if deck_id == -1:
-            return self.__get_card_ids_by_name(name, number, set_total)
-        return self.__get_deck_card_ids_by_name(name, number, set_total, deck_id)
-    def __get_card_ids_by_name(self, name, number, set_total) -> list | None:
-        ''' return list of ids from cards table with matching name number and set total'''
-        self.cursor.execute("SELECT id from cards WHERE name = ? AND number = ? and set_total = ?", (name, number, set_total))
-        return [_id[0] for _id in self.cursor.fetchall()]
-    def get_deck_card_ids_by_name(self, name, number, set_total, deck_id) -> list | None:
-        '''
-            returns list of ids that match the given name, number, and set_total given some deck
-        '''
-        self.cursor.execute(
-            """
-            SELECT 
-                deck_cards.card_id
-            FROM deck_cards
-            JOIN cards ON deck_cards.card_id = cards.id
-            JOIN decks ON deck_cards.deck_id = decks.id
-            WHERE cards.name = ? AND 
-                  cards.number = ? AND 
-                  cards.set_total = ? AND 
-                  deck_cards.deck_id = ? 
-            GROUP BY cards.name, cards.number, cards.set_total
-            """,
-            (name, number, set_total, deck_id)
-        )
-        return [_id[0] for _id in self.cursor.fetchall()]
     def get_card_by_id(self,card_id):
         ''''''
         return self.__get_card(card_id=card_id)
     
-    def get_total_card_count(self) -> int:
-        '''get total number of cards stored'''
-        self.cursor.execute("SELECT count(card_id) FROM cards")
+    def get_ability(self, card_id):
+        query = """
+        SELECT 
+            abilities.name, 
+            abilities.description
+        FROM abilities
+        JOIN card_abilities ON card_abilities.ability_id = abilities.id 
+        WHERE card_abilities.card_id = ?
+        """
+        self.cursor.execute(query, (card_id,))
         return self.cursor.fetchone()
-    
-    def get_total_deck_count(self) -> int:
-        '''get total number of decks stored'''
-        self.cursor.execute("SELECT count(deck_id) FROM decks")
-        return self.cursor.fetchone()
-    
     ########################################################
     ''' Remove items '''
     ########################################################
@@ -463,7 +294,7 @@ class CardDatabase:
             return "Card not found"
 
         self.cursor.execute(
-            "DELETE FROM cards WHERE card_id = ?", (card_id,)
+            "DELETE FROM cards WHERE id = ?", (card_id,)
         )
         self.cursor.execute(
             "DELETE FROM deck_cards WHERE card_id = ?", (card_id,)
@@ -477,7 +308,7 @@ class CardDatabase:
             "DELETE FROM deck_cards WHERE deck_id = ?", (deck_id,)
         )
         self.cursor.execute(
-            "DELETE FROM decks WHERE deck_id = ?", (deck_id,)
+            "DELETE FROM decks WHERE id = ?", (deck_id,)
         )
         self.conn.commit()
         return self.cursor.rowcount  # Returns the number of rows affected
@@ -487,76 +318,53 @@ class CardDatabase:
     ########################################################
 
     def __str__(self) -> str:
-        ret_string = self.__show_decks_table() + self.__show_cards_table() 
-        ret_string += f'\nTotal Cards: {self.get_total_card_count()[0]}'
-        ret_string += f'\nTotal Decks: {self.get_total_deck_count()[0]}'
-        # ret_string += self.__show_deck_cards_table(deck_id=1)
-        return ret_string
-    
-    def show_cards(self):
-        print(self.__show_cards_table())
+        # ret_string = self.__show_decks_table() + self.__show_cards_table() 
+        # ret_string += f'\nTotal Cards: {self.get_total_card_count()[0]}'
+        # ret_string += f'\nTotal Decks: {self.get_total_deck_count()[0]}'
+        # # ret_string += self.__show_deck_cards_table(deck_id=1)
+        """Displays the structure and contents of all tables in a SQLite database."""
+        return self.display_database_info_pandas_string()
 
-    def show_cards_in_deck(self, deck):
-        '''Gets all decks and show cards'''
-        deck_id = deck[0]
-        # self.cursor.execute(
-        #     """SELECT
-        #         cards.id,
-        #         cards.name,
-        #         cards.number,
-        #         cards.set_total,
-        #         cards.image_path
-        #     FROM deck_cards
-        #     JOIN cards ON deck_cards.card_id = cards.id
-        #     WHERE deck_cards.deck_id = ?""",
-        #     (int(deck_id),)
-        # )
-        # deck_cards = self.cursor.fetchall()
-        # for card_id, name, number, set_total, image_path in deck_cards:
-        #     card_count = self.__get_card_count(card_id=card_id, deck_id=deck_id)
-        #     print(f"id: {card_id}, name: {name}, number:{number}, set_totat:{set_total}, image_path:{image_path}, count: {card_count}")
-        self.cursor.execute(
-            """SELECT
-                 *
-             FROM deck_cards
-             WHERE deck_cards.deck_id = ?""",
-            (int(deck_id),)
-        )
-        deck_cards = self.cursor.fetchall()
-        print(deck_cards)
-    def show_all_cards(self):
-        cards = self.get_cards()
-        for _id, card in cards.items():
-            print(f'{card["name"]}, {card["number"]}, {card["set_total"]}, {card["count"]}')
-        return cards.keys()
-    
-    def show_decks_and_cards(self):
-        decks = self.get_decks_with_cards()
-        for deck, cards in decks.items():
-            print(f"deck: {deck}")
-            for card in cards:
-                print(f'card: {card["id"], card["name"]}, {card["number"]}, {card["set_total"]}, {card["count"]}')
+    def display_database_info_pandas_string(self):
+        """Displays the structure and contents of all tables in the SQLite database using pandas and returns the result as a string."""
+        output = io.StringIO()
 
-    def show_cards_from_ids(self, card_ids):
-        ''' given a list of ids, fetch matching cards and show them'''
-        query = "SELECT * FROM cards WHERE card_id IN ({seq})".format(seq=','.join(['?']*len(tuple(card_ids))))
-        self.cursor.execute(query, tuple(card_ids))
+        # Get a list of all tables in the database
+        query = "SELECT name FROM sqlite_master WHERE type='table';"
+        tables = pd.read_sql(query, self.conn)
 
-        rows = self.cursor.fetchall()
-        cards = {
-            row[0]: {
-                "name": row[1],
-                "number": row[2],
-                "set_total": row[3],
-                "super_type": row[4],
-                "card_type": row[5],
-                "sub_type": row[6],
-                "image_url": row[7],
-                "image_path": row[8]
-            }
-            for row in rows
-        }
-        print(cards)
+        for table_name in tables['name']:
+            output.write(f"\nTable: {table_name}\n" + "-" * 40 + "\n")
+
+            # Get the table schema using PRAGMA
+            schema = pd.read_sql(f"PRAGMA table_info({table_name})", self.conn)
+            output.write("Columns:\n")
+            for index, row in schema.iterrows():
+                output.write(f"  {row['name']} ({row['type']})\n")
+
+            # Print contents of the table
+            table_contents = pd.read_sql(f"SELECT * FROM {table_name}", self.conn)
+            if not table_contents.empty:
+                output.write("\nContents:\n")
+
+                # Set max column width for display
+                pd.set_option('display.max_colwidth', 50)  # Adjust column width to 50 characters
+                pd.set_option('display.width', None)  # Use automatic line width detection
+                pd.set_option('display.expand_frame_repr', True)  # Disable wrapping of the frame onto multiple lines
+
+                output.write(table_contents.to_string(index=False) + "\n")
+            else:
+                output.write("  No data\n")
+
+        # Reset display options to default
+        pd.reset_option('display.max_colwidth')
+        pd.reset_option('display.width', None)  # Use automatic line width detection
+        pd.reset_option('display.expand_frame_repr')
+
+        # Get the entire string from StringIO
+        contents = output.getvalue()
+        output.close()
+        return contents
     
     ########################################################
     ''' Private items '''
@@ -588,7 +396,7 @@ class CardDatabase:
 
     def __check_card(self, card_id):
         self.cursor.execute(
-            """SELECT * FROM cards WHERE card_id = ?""",
+            """SELECT * FROM cards WHERE id = ?""",
             (card_id,)
         )
         card_details = self.cursor.fetchone()
@@ -696,27 +504,6 @@ class CardDatabase:
         else:
             return (0,)  # No such card found
     
-    def __get_card_count(self, card_id, deck_id=None):
-        """Counts cards with the same name, number, and set_total as the card with the given card_id.
-        If deck_id is provided, counts only within that deck, otherwise counts in all cards."""
-        attributes = self.__get_card(card_id)
-        if attributes:
-            name, number, set_total = attributes[1], attributes[2], attributes[3]
-            if deck_id:
-                # Count matching cards within the specified deck
-                self.cursor.execute('''
-                    SELECT COUNT(*) FROM deck_cards
-                    JOIN cards ON deck_cards.card_id = cards.id
-                    WHERE deck_id = ? AND name = ? AND number = ? AND set_total = ?
-                    ''', (deck_id, name, number, set_total))
-            else:
-                # Count matching cards in all cards
-                self.cursor.execute('''
-                    SELECT COUNT(*) FROM cards
-                    WHERE name = ? AND number = ? AND set_total = ?
-                    ''', (name, number, set_total))
-            count = self.cursor.fetchone()[0]
-            return count
     
     def __get_all_card_ids(self)-> tuple | None:
         self.cursor.execute("SELECT id FROM cards")
@@ -724,17 +511,6 @@ class CardDatabase:
     def __get_all_deck_ids(self)-> tuple | None:
         self.cursor.execute("SELECT id FROM decks")
         return self.cursor.fetchall()
-    
-    def __has_sufficient_card_count(self, card_id, count):
-        '''
-            Returns if card_id with count can be move to deck
-            cannot move 
-
-        '''
-        card_total_count = self.__get_card_count(card_id)
-        self.cursor.execute("SELECT SUM(count) FROM deck_cards WHERE card_id = ?", (card_id,))
-        current_total_count = self.cursor.fetchone()[0] or 0
-        return current_total_count + count <= card_total_count
     
     def __get_deck_size(self, deck_id)-> int:
         '''
@@ -778,46 +554,6 @@ class CardDatabase:
 
         return True
     
-    def __show_decks_table(self)-> str:
-        '''
-            print decks table
-            deck_id: name
-        '''
-        # print("showing decks")
-        query = "SELECT * FROM decks"
-        self.cursor.execute(query)
-        deck_table = self.cursor.fetchall()
-        out_string = ""
-        for row in deck_table:
-            out_string += f"{row[0]}: {row[1]}\n"
-        return out_string
-    
-    def __show_cards_table(self)-> str:
-        '''
-            print cards table
-            card_id: name, number/set_total, amount: _
-        '''
-        query = "SELECT * FROM cards"
-        self.cursor.execute(query)
-        cards_table = self.cursor.fetchall()
-        cards = []
-        out_string = ""
-        for row in cards_table:
-            card_id = row[0]
-            name = row[1]
-            number = row[2]
-            set_total = row[3]
-            if (name, number, set_total) not in cards:
-                cards.append((name, number, set_total))
-                out_string += f"{card_id}: {name}, {number}/{set_total}, amount: {self.__get_card_count(card_id=card_id)}\n"
-        return out_string
-    def __show_deck_cards_table(self, deck_id):
-        query = "SELECT * FROM deck_cards where deck_id = ?"
-        deck_cards_table = self.cursor.execute(query, (deck_id,))
-        out_string = ""
-        for row in deck_cards_table:
-            out_string += f"{row}\n"
-        return out_string
     def to_csv(self):
         self.__generate_cards_csv()
         self.__generate_decks_csv()
@@ -858,6 +594,46 @@ class CardDatabase:
             writer.writerow(['deck_name', 'card_name', 'card_number', 'card_set_total', 'amount'])  # Include the header for amount
             writer.writerows(rows)
 
+    def __update_abilities(self, abilities, card_id):
+        # find ability and insert new if not found
+        for ability in abilities:
+            ability_id = self.__find_ability(ability["name"])
+            if not ability_id:
+                ability_id = self.__add_ability(ability)
+            # associate cards with ability
+            self.__assocaite_ability(card_id, ability_id[0])
 
+    def __find_ability(self, name):
+        query = """SELECT id FROM abilities WHERE name = ?"""
+        self.cursor.execute(query, (name,))
+        return self.cursor.fetchone()
+    
+    def __add_ability(self, ability):
+        query = """INSERT INTO abilities (name, description, type) VALUES (?, ?, ?)"""
+        self.cursor.execute(query, (ability["name"], ability["text"], ability["type"]))
+        self.conn.commit()
+        return (self.cursor.lastrowid,)
+    
+    def __assocaite_ability(self,card_id,ability_id):
+        self.cursor.execute(
+            "INSERT INTO card_abilities (card_id, ability_id) VALUES (?, ?)",
+            (card_id, ability_id)
+        )
+        self.conn.commit()
+        return "Ability added successfully"
+    
+    def __add_card_to_set(self, set_uid, card_id):
+
+        self.cursor.execute(
+            "INSERT INTO set_cards (set_id, card_id) VALUES (?, ?)",
+            (set_uid, card_id)
+        )
+        
+        self.conn.commit()
+        return "Card added to set successfully"
+    
+    def __find_set(self, set_id):
+        self.cursor.execute("""SELECT * from sets where set_id = ?""", (set_id,))
+        return self.cursor.fetchone()
 if __name__ == '__main__':
     print("nothing to run")

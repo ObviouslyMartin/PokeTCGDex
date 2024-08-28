@@ -7,9 +7,9 @@ from controller import Controller
 
 # The View
 class DeckManagerApp(customtkinter.CTk):
-    WINDOW_HEIGHT = 720
-    WINDOW_WIDTH = 1280
-
+    WINDOW_HEIGHT = 1169
+    WINDOW_WIDTH = 1800
+   
     def __init__(self):
         super().__init__()
         
@@ -28,6 +28,18 @@ class DeckManagerApp(customtkinter.CTk):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         
+
+        self.selected_deck_id = -1
+        self.current_cards = None
+        self.supertypes = []
+        # Checkbox states
+        self.checkbox_states = {
+            'Energy': customtkinter.BooleanVar(),
+            'Trainer': customtkinter.BooleanVar(),
+            'Pokémon': customtkinter.BooleanVar(),
+            'Ability': customtkinter.BooleanVar(),
+        }
+
         ##############
         ''' Assets '''
         ##############
@@ -68,7 +80,7 @@ class DeckManagerApp(customtkinter.CTk):
         # selected card text
         self.selected_card = ""
         self.selected_card_label = customtkinter.CTkLabel(self.navigation_frame, text=self.selected_card)
-        self.selected_card_label.grid(row=7, column=0, padx=10, pady=10)
+        self.selected_card_label.grid(row=8, column=0, padx=10, pady=10)
 
         # Main View
         self.main_frame = customtkinter.CTkFrame(self, corner_radius=0)
@@ -76,31 +88,25 @@ class DeckManagerApp(customtkinter.CTk):
         self.main_frame.grid_rowconfigure(1, weight=1)
         self.main_frame.grid_columnconfigure(0, weight=1)
 
-        # Filter Buttons
+        # Filter Buttons and Info
         self.filter_frame = customtkinter.CTkFrame(self.main_frame)
         self.filter_frame.grid(row=0, column=0, padx=20, pady=10, sticky="we")
-        self.filter_frame.grid_columnconfigure((0, 1, 2), weight=1)
-        self.pokemon_check_box = customtkinter.CTkCheckBox(self.filter_frame, text="Pokémon Cards", command=self.toggle_pokemon,)
-        self.pokemon_check_box.grid(row=0, column=0, padx=10, pady=5)
-        self.energy_check_box = customtkinter.CTkCheckBox(self.filter_frame, text="Energy Cards", command=self.toggle_energy)
-        self.energy_check_box.grid(row=0, column=1, padx=10, pady=5)
-        self.trainer_check_box = customtkinter.CTkCheckBox(self.filter_frame, text="Trainer Cards", command=self.toggle_trainer)
-        self.trainer_check_box.grid(row=0, column=2, padx=10, pady=5)
+        self.filter_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        
+        # Create checkboxes
+        for i, (type, var) in enumerate(self.checkbox_states.items()):
+            customtkinter.CTkCheckBox(self.filter_frame, text=type, variable=var, command=self.display_cards).grid(row=0, column=i, sticky='w')
+        
+    
+        self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
+        self.total_cards_label.grid(row=0,column=4, sticky='w')
 
         # Card Display Frame
         self.card_display_frame = customtkinter.CTkScrollableFrame(self.main_frame)
         self.card_display_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nswe")
-        self.card_display_frame.grid_columnconfigure(0, weight=1)
-        self.card_display_frame.grid_rowconfigure(0, weight=1)
+        self.card_display_frame.grid_columnconfigure(10, weight=1)
+        # self.card_display_frame.grid_rowconfigure(0, weight=1)
 
-        self.selected_deck_id = -1
-
-        # self.energy_selected = True
-        # self.trainer_selected = True
-        # self.pokemon_selected = True
-        self.supertypes = []
-        self.current_cards = None
-        # self.supertypes = ["Energy", "Trainer", "Pokémon"]
 
         ###############
         ''' BUTTONS '''
@@ -129,7 +135,7 @@ class DeckManagerApp(customtkinter.CTk):
         # load cards and decks
         self.load_decks()
         self.display_cards()
-
+    
     def load_decks(self):
         deck_names = ["All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.controller.get_decks().items()]
         self.deck_combobox.configure(values=deck_names)
@@ -144,57 +150,39 @@ class DeckManagerApp(customtkinter.CTk):
         self.display_cards()
 
     def display_cards(self):
-        # TODO: not displaying cards for decks
         for widget in self.card_display_frame.winfo_children():
+            self.total_cards_label.configure(text=0)
             widget.destroy()
         if not self.current_cards:
             self.current_cards = self.controller.get_cards(deck_id=self.selected_deck_id)
-
-        # print(f'Picku: \n{self.current_cards}')
+        
+        selected_types = {type for type, var in self.checkbox_states.items() if var.get()}
+        if not selected_types:
+            return
+        if "Ability" in selected_types:
+            filtered_cards = [card for card in self.current_cards if card["ability"] is not None]
+        else:
+            filtered_cards = [card for card in self.current_cards if card['super_type'] in selected_types]
         row, col = 0, 0
-        for card_info in self.current_cards:
+        num_cards = 0
+        for card_info in filtered_cards:
             image = Image.open(card_info["image_path"])
-            photo = customtkinter.CTkImage(image, size=(180, 240))
+            photo = customtkinter.CTkImage(image, size=(230, 300))
 
             card_label = customtkinter.CTkButton(self.card_display_frame, corner_radius=5, width=180, height=240, image=photo, text="")
             card_label = customtkinter.CTkButton(self.card_display_frame, image=photo, text="", 
                                                 command=lambda card=card_info: self.card_picture_press_event(card))
-            # card_label.image = photo
             card_label.grid(row=row, column=col, padx=5, pady=5)
 
             count_label = customtkinter.CTkLabel(self.card_display_frame, text=f"x{len(card_info['all_card_ids'])}", font=customtkinter.CTkFont(size=14))
             count_label.grid(row=row+1, column=col, padx=5, pady=5)
-
+            num_cards += len(card_info['all_card_ids'])
+            self.total_cards_label.configure(text=num_cards)
             col += 1
-            if col >= 5:
+            if col >= 6:
                 col = 0
                 row += 2
-    
-    def toggle_energy(self):
-        if self.energy_check_box:
-            self.supertypes.append("Energy")
-        else:
-            self.supertypes.remove("Energy")
         
-        # self.energy_selected = not self.energy_selected
-        self.display_cards()
-
-    def toggle_trainer(self):
-        if self.trainer_check_box:
-            self.supertypes.append("Trainer")
-        else:
-            self.supertypes.remove("Trainer")
-        # self.trainer_selected = . not self.trainer_selected
-        self.display_cards()
-
-    def toggle_pokemon(self):
-        if self.pokemon_check_box:
-            self.supertypes.append("Pokémon")
-        else:
-            self.supertypes.remove("Pokémon")
-        # self.pokemon_selected = not self.pokemon_selected
-        self.display_cards()
-    
     def add_deck_popup(self):
         add_deck_window = customtkinter.CTkToplevel(self)
         add_deck_window.title("Add Deck")
@@ -252,6 +240,9 @@ class DeckManagerApp(customtkinter.CTk):
 
         self.submit_button = customtkinter.CTkButton(self.add_card_window, text="Add Card", command=self.add_card_button_press_event)
         self.submit_button.grid(row=5, column=0, columnspan=2, padx=10, pady=10)
+
+        self.added_card_label = customtkinter.CTkLabel(self.add_card_window, text="")
+        self.added_card_label.grid(row=6, column=0, columnspan=2, padx=10, pady=10)
     
     def remove_card_popup(self):
         if self.selected_deck_id is None:
@@ -332,9 +323,11 @@ class DeckManagerApp(customtkinter.CTk):
         is_promo = self.is_promo_entry.get() if self.is_promo_entry.get() else False
 
         if name and number:
-            self.controller.add_to_db_from_input(card_name=name, card_number=number, set_total=set_total, amount=amount, is_promo=is_promo)
+            new_ids = self.controller.add_to_db_from_input(card_name=name, card_number=number, set_total=set_total, amount=amount, is_promo=is_promo)
             self.current_cards = None
+            self.added_card_label.configure(text=f'Successfully added:\n{name}, {number}/{set_total}\nAmount: x{amount}')
             self.display_cards()
+
         else:
             print("Name and number are required to add a card")
 
@@ -368,10 +361,10 @@ class DeckManagerApp(customtkinter.CTk):
             return
 
         if card_file_name:
-            self.controller.load_cards_from_csv(csv_file="card_input_csvs/"+card_file_name)
+            self.controller.load_cards_from_csv(csv_file="card_input_csvs/"+card_file_name+'.csv')
 
         if deck_file_name:
-            self.controller.load_decks_from_csv(csv_file="card_input_csvs/"+deck_file_name)
+            self.controller.load_decks_from_csv(csv_file="card_input_csvs/"+deck_file_name+'.csv')
         self.current_cards = None
         self.load_decks()
         self.display_cards()
