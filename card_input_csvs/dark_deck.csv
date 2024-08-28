@@ -1,33 +1,33 @@
-deck_name,name,number,set_total,amount
-Basic Darkness Energy,7,None,20
-Basic Psychic Energy,5,None,6
-Boomerang Energy,166,167,1
-Mist Energy,161,162,1
-Bloodmoon Ursaluna ex,141,167,1
-Brute Bonnet,123,182,1
-Darkrai,136,197,3
-Hoopa ex,98,182,1
-Inkay,33,64,2
-Fezandipiti,96,167,1
-Malamar,34,64,2
-Roaring Moon ex,124,182,1
-Ancient Booster Energy Capsule,140,162,1
-Binding Mochi,55,64,1
-Cook,147,167,2
-Daisy's Help,158,165,1
-Energy Search,172,198,1
-Energy Switch,173,198,1
-Energy Removal,92,102,1
-Grabber,162,165,1
-Hassel,151,167,1
-Kieran,154,167,1
-Lana's Aid,155,167,1
-Letter of Encouragement,189,197,1
-Leftovers,163,165,1
-Miriam,179,198,1
-Night Stretcher,61,64,1
-Professor Sada's Vitality,170,182,1
-Roark,173,182,1
-Rock Chestplate,192,198,1
-Switch,95,102,2
-Xerosic's Machinations,64,64,2
+deck_name,name,number,set_total,amount,promo
+Poison,Basic Darkness Energy,7,None,20,False
+Poison,Basic Psychic Energy,5,None,6,False
+Poison,Boomerang Energy,166,167,1,False
+Poison,Mist Energy,161,162,1,False
+Poison,Bloodmoon Ursaluna ex,141,167,1,False
+Poison,Brute Bonnet,123,182,1,False
+Poison,Darkrai,136,197,3,False
+Poison,Hoopa ex,98,182,1,False
+Poison,Inkay,33,64,2,False
+Poison,Fezandipiti,96,167,1,False
+Poison,Malamar,34,64,2,False
+Poison,Roaring Moon ex,124,182,1,False
+Poison,Ancient Booster Energy Capsule,140,162,1,False
+Poison,Binding Mochi,55,64,1,False
+Poison,Cook,147,167,2,False
+Poison,Daisy's Help,158,165,1,False
+Poison,Energy Search,172,198,1,False
+Poison,Energy Switch,173,198,1,False
+Poison,Energy Removal,92,102,1,False
+Poison,Grabber,162,165,1,False
+Poison,Hassel,151,167,1,False
+Poison,Kieran,154,167,1,False
+Poison,Lana's Aid,155,167,1,False
+Poison,Letter of Encouragement,189,197,1,False
+Poison,Leftovers,163,165,1,False
+Poison,Miriam,179,198,1,False
+Poison,Night Stretcher,61,64,1,False
+Poison,Professor Sada's Vitality,170,182,1,False
+Poison,Roark,173,182,1,False
+Poison,Rock Chestplate,192,198,1,False
+Poison,Switch,95,102,2,False
+Poison,Xerosic's Machinations,64,64,2,False
