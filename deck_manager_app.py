@@ -1,5 +1,5 @@
 import customtkinter
-from extras.checkbox_dropdown_example import CheckboxDropdown
+from card_filter_window import CheckboxDropdown
 import os
 from PIL import Image
 from card_database import CardDatabase
@@ -28,44 +28,21 @@ class DeckManagerApp(customtkinter.CTk):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         
-
         self.selected_deck_id = -1
         self.current_cards = None
-        # Checkbox options
-        self.special_filters = { #sdk_card["abilities"]
-            'Ability': customtkinter.BooleanVar(),
-        }
-        self.supertypes_filter = { # sdk_card["supertypes"]
-            'Energy': customtkinter.BooleanVar(),
-            'Trainer': customtkinter.BooleanVar(),
-            'Pokémon': customtkinter.BooleanVar(),
-        }
-        self.cardtype_filter = { # sdk_card["sub_types"]
-            # 'Basic': customtkinter.BooleanVar(),
-            # 'Special': customtkinter.BooleanVar(),
-            # 'Stage 1': customtkinter.BooleanVar(),
-            # 'Stage 2': customtkinter.BooleanVar(),
-            # 'Item': customtkinter.BooleanVar(),
-            # 'Supporter': customtkinter.BooleanVar(),
-            # 'Stadium': customtkinter.BooleanVar(),
-            # 'Pokémon Tool': customtkinter.BooleanVar(),
-        }
-        self.cardcolor_filter = { # sdk_card["card_types"]
-            'Colorless': customtkinter.BooleanVar(),
-            'Darkness': customtkinter.BooleanVar(),
-            'Fighting': customtkinter.BooleanVar(),
-            'Fire': customtkinter.BooleanVar(),
-            'Grass': customtkinter.BooleanVar(),
-            'Lightning': customtkinter.BooleanVar(),
-            'Metal': customtkinter.BooleanVar(),
-            'Psychic': customtkinter.BooleanVar(),
-            'Water': customtkinter.BooleanVar(),
-        }
 
-        ##############
-        ''' Assets '''
-        ##############
+        self.load_assets()
+        self.create_filter_options()
+        self.create_navigation_frame()
+        self.create_buttons()
+        # load cards and decks
+        self.load_decks()
+        self.display_cards()
 
+    ##############
+    ''' Assets '''
+    ##############
+    def load_assets(self):
         # Load images
         path_to_images = "assets"
         image_path = path_to_images
@@ -79,10 +56,10 @@ class DeckManagerApp(customtkinter.CTk):
         self.add_user_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "add_user_dark.png")),
                                                      dark_image=Image.open(os.path.join(image_path, "add_user_light.png")), size=(20, 20))
         
-        ##############
-        ''' LAYOUT '''
-        ##############
-
+    ##############
+    ''' LAYOUT '''
+    ##############
+    def create_navigation_frame(self):
         # Create navigation frame
         self.navigation_frame = customtkinter.CTkFrame(self, corner_radius=0)
         self.navigation_frame.grid(row=0, column=0, sticky="nswe")
@@ -114,12 +91,8 @@ class DeckManagerApp(customtkinter.CTk):
         self.filter_frame = customtkinter.CTkFrame(self.main_frame)
         self.filter_frame.grid(row=0, column=0, padx=20, pady=10, sticky="we")
         self.filter_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
-        
-        # Create checkboxes
-        # for i, (type, var) in enumerate(self.filter.items()):
-        #     customtkinter.CTkCheckBox(self.filter_frame, text=type, variable=var, command=self.display_cards).grid(row=0, column=i, sticky='w')
-        
-        
+
+        # total cards count     
         self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
         self.total_cards_label.grid(row=0,column=4, sticky='w')
 
@@ -127,13 +100,45 @@ class DeckManagerApp(customtkinter.CTk):
         self.card_display_frame = customtkinter.CTkScrollableFrame(self.main_frame)
         self.card_display_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nswe")
         self.card_display_frame.grid_columnconfigure(10, weight=1)
-        # self.card_display_frame.grid_rowconfigure(0, weight=1)
 
-
-        ###############
-        ''' BUTTONS '''
-        ###############
-
+    ######################
+    ''' Filter Options '''
+    ######################
+    def create_filter_options(self):
+        # Checkbox options
+        self.special_filters = { #sdk_card["abilities"]
+            'Ability': customtkinter.BooleanVar(),
+        }
+        self.supertypes_filter = { # sdk_card["supertypes"]
+            'Energy': customtkinter.BooleanVar(),
+            'Trainer': customtkinter.BooleanVar(),
+            'Pokémon': customtkinter.BooleanVar(),
+        }
+        self.cardtype_filter = { # sdk_card["sub_types"]
+            # 'Basic': customtkinter.BooleanVar(),
+            # 'Special': customtkinter.BooleanVar(),
+            # 'Stage 1': customtkinter.BooleanVar(),
+            # 'Stage 2': customtkinter.BooleanVar(),
+            # 'Item': customtkinter.BooleanVar(),
+            # 'Supporter': customtkinter.BooleanVar(),
+            # 'Stadium': customtkinter.BooleanVar(),
+            # 'Pokémon Tool': customtkinter.BooleanVar(),
+        }
+        self.cardcolor_filter = { # sdk_card["card_types"]
+            'Colorless': customtkinter.BooleanVar(),
+            'Darkness': customtkinter.BooleanVar(),
+            'Fighting': customtkinter.BooleanVar(),
+            'Fire': customtkinter.BooleanVar(),
+            'Grass': customtkinter.BooleanVar(),
+            'Lightning': customtkinter.BooleanVar(),
+            'Metal': customtkinter.BooleanVar(),
+            'Psychic': customtkinter.BooleanVar(),
+            'Water': customtkinter.BooleanVar(),
+        }
+    ###############
+    ''' BUTTONS '''
+    ###############
+    def create_buttons(self):
         # Main View Add Deck Button
         self.add_deck_button = customtkinter.CTkButton(self.navigation_frame, text="Add Deck", command=self.add_deck_popup)
         self.add_deck_button.grid(row=3, column=0, padx=20, pady=10, sticky="s")
@@ -154,12 +159,12 @@ class DeckManagerApp(customtkinter.CTk):
         self.import_from_file_button = customtkinter.CTkButton(self.navigation_frame, text="Import From File", command=self.import_from_file_popup)
         self.import_from_file_button.grid(row=7, column=0, padx=20, pady=5, sticky="s")
         
-        
+        # apply filters button 
         self.filter_button = CheckboxDropdown(self.filter_frame, text="Apply Filters", variables=self.special_filters | self.supertypes_filter | self.cardcolor_filter| self.cardtype_filter, command=self.display_cards)
-        # load cards and decks
-        self.load_decks()
-        self.display_cards()
-    
+
+    #####################
+    ''' Functionality '''
+    #####################
     def load_decks(self):
         deck_names = ["-2: Not In Deck","-1: All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.controller.get_decks().items()]
         self.deck_combobox.configure(values=deck_names)
@@ -196,16 +201,6 @@ class DeckManagerApp(customtkinter.CTk):
 
         # if not self.current_cards:
         self.current_cards = self.controller.get_cards(deck_id=self.selected_deck_id, filters=selected_filters)
-    
-
-        # if not (selected_filters):
-        #     self.__display_cards(filtered_cards=self.current_cards)
-        #     return
-        
-        # if selected_filters:
-        #     filtered_cards = [card for card in self.current_cards if card["ability"] is not None]
-        # else:
-        #     filtered_cards = [card for card in self.controller.get_cards(deck_id=self.selected_deck_id, filters=selected_filters)]
 
         self.__display_cards(filtered_cards=self.current_cards)
 
@@ -229,7 +224,10 @@ class DeckManagerApp(customtkinter.CTk):
             if col >= 6:
                 col = 0
                 row += 2
-        
+    #################
+    ''' UI Events '''
+    #################
+    
     def add_deck_popup(self):
         add_deck_window = customtkinter.CTkToplevel(self)
         add_deck_window.title("Add Deck")
