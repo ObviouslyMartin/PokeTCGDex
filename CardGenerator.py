@@ -107,7 +107,7 @@ class CardGenerator:
         print(f"Directory '{folder_path}' is ready.")
         return True
     
-    def save_image(content, image_path):
+    def save_image(self, content, image_path):
         img = Image.open(BytesIO(content))
         if img.mode in ("RGBA", "P"):
             img = img.convert('RGB')

@@ -152,14 +152,15 @@ class CardDatabase:
     ''' Get things '''
     ########################################################
     
-    def get_cards_with_detailed_amount(self, deck_id=-1):
+    def get_cards_with_detailed_amount(self, deck_id=-1, filters=[]):
         """
-        Retrieves a list of cards from the cards table and augments each entry with two lists:
-        1) all_card_ids: All card_ids that match name, number, and set_total in the cards table.
-        2) not_in_deck_ids: All card_ids that match name, number, and set_total and are not associated with any deck.
-        
-        If a deck_id is provided, filters the cards to those associated with that deck.
+            Retrieves a list of cards from the cards table and augments each entry with two lists:
+            1) all_card_ids: All card_ids that match name, number, and set_total in the cards table.
+            2) not_in_deck_ids: All card_ids that match name, number, and set_total and are not associated with any deck.
+            
+            If a deck_id is provided, filters the cards to those associated with that deck.
         """
+
         # Common SELECT part of the SQL query
         base_query = """
             SELECT
@@ -176,16 +177,20 @@ class CardDatabase:
                 cards.id
             FROM cards
         """
-        
+        base_query = self.__apply_filters(base_query, filters)
         # Conditional WHERE clause depending on whether deck_id is provided
-        if deck_id != -1:
-            # Fetch cards specifically from the given deck
-            query = f"{base_query} JOIN deck_cards ON cards.id = deck_cards.card_id WHERE deck_cards.deck_id = ? GROUP BY cards.name, cards.number, cards.set_total"
-            self.cursor.execute(query, (deck_id,))
-        else:
+        if deck_id == -2:
+            query = f"{base_query} AND cards.id NOT IN (SELECT card_id FROM deck_cards) GROUP BY name, number, set_total"
+            self.cursor.execute(query)
+        elif deck_id == -1:
             # Fetch all cards without deck filtering
             query = f"{base_query} GROUP BY cards.name, cards.number, cards.set_total"
             self.cursor.execute(query)
+        else:
+            # Fetch cards specifically from the given deck
+            query = f"{base_query} JOIN deck_cards ON cards.id = deck_cards.card_id WHERE deck_cards.deck_id = ? GROUP BY cards.name, cards.number, cards.set_total"
+            self.cursor.execute(query, (deck_id,))
+            
 
         # Fetch and return results
         results = self.cursor.fetchall()
@@ -369,6 +374,32 @@ class CardDatabase:
     ########################################################
     ''' Private items '''
     ########################################################
+    def __apply_filters(self, base_query, filters):
+        
+        if 'super_types' in filters:
+            base_query += f" WHERE cards.super_type IN {self.__format_filter(filters, 'super_types')}"
+        if 'color' in filters and 'sub_type' not in filters:
+            base_query += f" AND cards.card_type IN {self.__format_filter(filters, 'color')}"
+        # elif 'sub_type' in filters and 'color' not in filters:
+        #     base_query += f" AND cards.sub_type IN ({self.__format_filter(filters, 'sub_type', comma_list=True)}"
+        # elif 'color' in filters and 'sub_type' in filters:
+        #     base_query += f" AND (cards.sub_type IN ({self.__format_filter(filters, 'sub_type')} OR cards.card_type IN {self.__format_filter(filters, 'color')})"
+        print(f"base_query: {base_query}")
+        return base_query
+    def __format_filter(self, filters, item, comma_list=False):
+        # Retrieve the list of super types from the dictionary or default to an empty list if not present
+        
+        
+        filter_items = filters.get(item, [])
+        if comma_list:
+            filter_items = filter_items.split(',')
+        # Format each element in the list as a quoted string for SQL compatibility
+        formatted_types = [f"'{stype}'" for stype in filter_items]
+
+        # Join all formatted elements into a comma-separated string, enclosed in parentheses
+        formatted_string = f"({', '.join(formatted_types)})"
+
+        return formatted_string
     def __update_sets(self, set_id, set_name, set_series, set_image_url, set_image_path, card_id):
         '''
             add new card to a set.

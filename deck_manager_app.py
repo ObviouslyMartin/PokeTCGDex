@@ -1,4 +1,5 @@
 import customtkinter
+from extras.checkbox_dropdown_example import CheckboxDropdown
 import os
 from PIL import Image
 from card_database import CardDatabase
@@ -21,7 +22,6 @@ class DeckManagerApp(customtkinter.CTk):
 
         # Database
         self.db = CardDatabase(self.db_path)
-        #TODO: uncomment once self.db is replaced with controller logic
         self.controller = Controller()
         
         # Set grid layout 1x2
@@ -31,13 +31,35 @@ class DeckManagerApp(customtkinter.CTk):
 
         self.selected_deck_id = -1
         self.current_cards = None
-        self.supertypes = []
-        # Checkbox states
-        self.checkbox_states = {
+        # Checkbox options
+        self.special_filters = { #sdk_card["abilities"]
+            'Ability': customtkinter.BooleanVar(),
+        }
+        self.supertypes_filter = { # sdk_card["supertypes"]
             'Energy': customtkinter.BooleanVar(),
             'Trainer': customtkinter.BooleanVar(),
             'Pokémon': customtkinter.BooleanVar(),
-            'Ability': customtkinter.BooleanVar(),
+        }
+        self.cardtype_filter = { # sdk_card["sub_types"]
+            # 'Basic': customtkinter.BooleanVar(),
+            # 'Special': customtkinter.BooleanVar(),
+            # 'Stage 1': customtkinter.BooleanVar(),
+            # 'Stage 2': customtkinter.BooleanVar(),
+            # 'Item': customtkinter.BooleanVar(),
+            # 'Supporter': customtkinter.BooleanVar(),
+            # 'Stadium': customtkinter.BooleanVar(),
+            # 'Pokémon Tool': customtkinter.BooleanVar(),
+        }
+        self.cardcolor_filter = { # sdk_card["card_types"]
+            'Colorless': customtkinter.BooleanVar(),
+            'Darkness': customtkinter.BooleanVar(),
+            'Fighting': customtkinter.BooleanVar(),
+            'Fire': customtkinter.BooleanVar(),
+            'Grass': customtkinter.BooleanVar(),
+            'Lightning': customtkinter.BooleanVar(),
+            'Metal': customtkinter.BooleanVar(),
+            'Psychic': customtkinter.BooleanVar(),
+            'Water': customtkinter.BooleanVar(),
         }
 
         ##############
@@ -94,10 +116,10 @@ class DeckManagerApp(customtkinter.CTk):
         self.filter_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
         
         # Create checkboxes
-        for i, (type, var) in enumerate(self.checkbox_states.items()):
-            customtkinter.CTkCheckBox(self.filter_frame, text=type, variable=var, command=self.display_cards).grid(row=0, column=i, sticky='w')
+        # for i, (type, var) in enumerate(self.filter.items()):
+        #     customtkinter.CTkCheckBox(self.filter_frame, text=type, variable=var, command=self.display_cards).grid(row=0, column=i, sticky='w')
         
-    
+        
         self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
         self.total_cards_label.grid(row=0,column=4, sticky='w')
 
@@ -132,37 +154,62 @@ class DeckManagerApp(customtkinter.CTk):
         self.import_from_file_button = customtkinter.CTkButton(self.navigation_frame, text="Import From File", command=self.import_from_file_popup)
         self.import_from_file_button.grid(row=7, column=0, padx=20, pady=5, sticky="s")
         
+        
+        self.filter_button = CheckboxDropdown(self.filter_frame, text="Apply Filters", variables=self.special_filters | self.supertypes_filter | self.cardcolor_filter| self.cardtype_filter, command=self.display_cards)
         # load cards and decks
         self.load_decks()
         self.display_cards()
     
     def load_decks(self):
-        deck_names = ["All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.controller.get_decks().items()]
+        deck_names = ["-2: Not In Deck","-1: All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.controller.get_decks().items()]
         self.deck_combobox.configure(values=deck_names)
 
     def on_deck_select(self, selected_deck):
-        if selected_deck == "All Cards":
-            self.selected_deck_id = -1
-            self.current_cards = None
-        else:
-            self.selected_deck_id = int(selected_deck.split(":")[0])
-            self.current_cards = None
+        self.selected_deck_id = int(selected_deck.split(":")[0])
+        self.current_cards = None
         self.display_cards()
+
+    def __get_filters(self):
+        special = [type for type, var in self.special_filters.items() if var.get()]
+        super_types = [type for type, var in self.supertypes_filter.items() if var.get()]
+        color = [type for type, var in self.cardcolor_filter.items() if var.get()]
+        sub_type = [type for type, var in self.cardtype_filter.items() if var.get()]
+
+        ret_filters = {}
+        if len(special) != 0:
+            ret_filters["special"] = special
+        if len(super_types) != 0:
+            ret_filters["super_types"] = super_types
+        if len(color) != 0:
+            ret_filters["color"] = color
+        if len(sub_type) != 0:
+            ret_filters ["sub_type"] = sub_type
+        
+        return ret_filters
+        
 
     def display_cards(self):
         for widget in self.card_display_frame.winfo_children():
             self.total_cards_label.configure(text=0)
             widget.destroy()
-        if not self.current_cards:
-            self.current_cards = self.controller.get_cards(deck_id=self.selected_deck_id)
+        selected_filters = self.__get_filters()
+
+        # if not self.current_cards:
+        self.current_cards = self.controller.get_cards(deck_id=self.selected_deck_id, filters=selected_filters)
+    
+
+        # if not (selected_filters):
+        #     self.__display_cards(filtered_cards=self.current_cards)
+        #     return
         
-        selected_types = {type for type, var in self.checkbox_states.items() if var.get()}
-        if not selected_types:
-            return
-        if "Ability" in selected_types:
-            filtered_cards = [card for card in self.current_cards if card["ability"] is not None]
-        else:
-            filtered_cards = [card for card in self.current_cards if card['super_type'] in selected_types]
+        # if selected_filters:
+        #     filtered_cards = [card for card in self.current_cards if card["ability"] is not None]
+        # else:
+        #     filtered_cards = [card for card in self.controller.get_cards(deck_id=self.selected_deck_id, filters=selected_filters)]
+
+        self.__display_cards(filtered_cards=self.current_cards)
+
+    def __display_cards(self, filtered_cards):
         row, col = 0, 0
         num_cards = 0
         for card_info in filtered_cards:
@@ -339,6 +386,7 @@ class DeckManagerApp(customtkinter.CTk):
         card = self.selected_card
         amount = self.amount_to_add_entry.get()
         self.controller.move_card_to_deck(deck_name, card, int(amount))
+        self.current_cards = None
         self.display_cards()
         self.move_card_window.destroy()
 

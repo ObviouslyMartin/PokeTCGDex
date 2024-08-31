@@ -47,11 +47,12 @@ class Controller:
         card = self.db.get_card_by_id(card_id=card_id)
         return {"name": card[1], "number": card[2], "set_total": card[3], "super_type":card[4], "card_type": card[5], "sub_type":card[6], "rarity":card[9]}
     
-    def get_cards(self, deck_id=-1):
+    def get_cards(self, deck_id=-1, filters=[]):
         '''
             Query database for cards. 
             returns list of dictionaries of unique cards
         '''
+        db_cards = self.db.get_cards_with_detailed_amount(deck_id=deck_id, filters=filters)
         cards = [
                     {
                         "name": row[0],
@@ -66,11 +67,10 @@ class Controller:
                         "rarity":row[9],
                         "ability":self.get_ability(card_id=row[10])
                     }
-                    for row in self.db.get_cards_with_detailed_amount(deck_id=deck_id)
+                    for row in db_cards
                 ]
         return sorted(cards, key=lambda card: card["name"])
             
-    
     def get_decks(self,deck_id=-1):
         '''
         query database for decks
