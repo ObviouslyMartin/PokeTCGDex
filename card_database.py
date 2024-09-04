@@ -116,15 +116,6 @@ class CardDatabase:
 
     def move_card_to_deck(self, deck_id, card_id, count):
         
-        if not self.__deck_exists(deck_id):
-            return "Deck does not exist"
-        
-        if not self.__get_card(card_id):
-            return "Card does not exist"
-
-        # if not self.__has_sufficient_card_count(card_id, count):
-        #     return "Not enough cards available"
-
         if not self.__can_add_to_deck(deck_id, card_id, count):
             return "Cannot add more than 4 of the same card or exceed the deck limit of 60 cards"
 
@@ -400,6 +391,7 @@ class CardDatabase:
         formatted_string = f"({', '.join(formatted_types)})"
 
         return formatted_string
+    
     def __update_sets(self, set_id, set_name, set_series, set_image_url, set_image_path, card_id):
         '''
             add new card to a set.
@@ -421,6 +413,7 @@ class CardDatabase:
         self.conn.commit()
         set_uuid = self.cursor.lastrowid  # Get the last inserted uuid
         return set_uuid
+    
     def __deck_exists(self, deck_id) -> tuple | None:
         self.cursor.execute("SELECT id FROM decks WHERE id = ?", (deck_id,))
         return self.cursor.fetchone()
@@ -555,12 +548,13 @@ class CardDatabase:
     
     def __is_energy_card(self, card_id) -> bool:
         '''
-            returns is the card_id an energy card?
+            returns is the card_id a basic energy card?
         '''
-        self.cursor.execute("Select super_type FROM cards WHERE id = ?", (card_id,))
-        super_type = self.cursor.fetchone()
+        self.cursor.execute("Select name, super_type FROM cards WHERE id = ?", (card_id,))
+        card = self.cursor.fetchone()
         # print(f'super_type == {super_type[0]}')
-        return super_type[0] == "Energy"
+
+        return ("Basic" in card[0]) and (card[1] == "Energy")
     
     def __can_add_to_deck(self, deck_id, card_id, count) -> bool:
         ''' 
@@ -569,12 +563,15 @@ class CardDatabase:
         '''
         if not self.__deck_exists(deck_id):
             return False
+        if not self._card_exists(card_id):
+            return False
         
         deck_size = self.__get_deck_size(deck_id)
 
         if deck_size + count > 60:
             return False
         
+        # Is basic energy?
         if self.__is_energy_card(card_id):
             return True
         
