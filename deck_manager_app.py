@@ -11,14 +11,14 @@ class DeckManagerApp(customtkinter.CTk):
     WINDOW_HEIGHT = 1169
     WINDOW_WIDTH = 1800
    
-    def __init__(self):
+    def __init__(self, db_path):
         super().__init__()
         
         self.title("Deck Manager")
         self.geometry(f"{self.WINDOW_WIDTH}x{self.WINDOW_HEIGHT}")
         
         # Determine the path to the database file
-        self.db_path = "test_db.db"
+        self.db_path = "db_path"
 
         # Database
         self.db = CardDatabase(self.db_path)
@@ -31,10 +31,14 @@ class DeckManagerApp(customtkinter.CTk):
         self.selected_deck_id = -1
         self.current_cards = None
 
+
         self.load_assets()
-        self.create_filter_options()
+
+        # Tese should be create_<frame_name>()
+        self.create_main_frame()
         self.create_navigation_frame()
-        self.create_buttons()
+        self.create_filter_frame()
+        
         # load cards and decks
         self.load_decks()
         self.display_cards()
@@ -59,6 +63,30 @@ class DeckManagerApp(customtkinter.CTk):
     ##############
     ''' LAYOUT '''
     ##############
+    def create_filter_frame(self):
+         # Filter Buttons and Info
+        self.filter_frame = customtkinter.CTkFrame(self.main_frame)
+        self.filter_frame.grid(row=0, column=0, padx=20, pady=10, sticky="we")
+        self.filter_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+
+        # total cards count     
+        self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
+        self.total_cards_label.grid(row=0,column=4, sticky='w')
+        self.create_filter_options()
+        self.create_filter_buttons()
+
+    def create_main_frame(self):
+        # Main View
+        self.main_frame = customtkinter.CTkFrame(self, corner_radius=0)
+        self.main_frame.grid(row=0, column=1, sticky="nswe")
+        self.main_frame.grid_rowconfigure(1, weight=1)
+        self.main_frame.grid_columnconfigure(0, weight=1)
+
+        # Card Display Frame
+        self.card_display_frame = customtkinter.CTkScrollableFrame(self.main_frame)
+        self.card_display_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nswe")
+        self.card_display_frame.grid_columnconfigure(10, weight=1)
+
     def create_navigation_frame(self):
         # Create navigation frame
         self.navigation_frame = customtkinter.CTkFrame(self, corner_radius=0)
@@ -80,26 +108,8 @@ class DeckManagerApp(customtkinter.CTk):
         self.selected_card = ""
         self.selected_card_label = customtkinter.CTkLabel(self.navigation_frame, text=self.selected_card)
         self.selected_card_label.grid(row=8, column=0, padx=10, pady=10)
-
-        # Main View
-        self.main_frame = customtkinter.CTkFrame(self, corner_radius=0)
-        self.main_frame.grid(row=0, column=1, sticky="nswe")
-        self.main_frame.grid_rowconfigure(1, weight=1)
-        self.main_frame.grid_columnconfigure(0, weight=1)
-
-        # Filter Buttons and Info
-        self.filter_frame = customtkinter.CTkFrame(self.main_frame)
-        self.filter_frame.grid(row=0, column=0, padx=20, pady=10, sticky="we")
-        self.filter_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
-
-        # total cards count     
-        self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
-        self.total_cards_label.grid(row=0,column=4, sticky='w')
-
-        # Card Display Frame
-        self.card_display_frame = customtkinter.CTkScrollableFrame(self.main_frame)
-        self.card_display_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nswe")
-        self.card_display_frame.grid_columnconfigure(10, weight=1)
+        
+        self.create_navigation_buttons()
 
     ######################
     ''' Filter Options '''
@@ -138,7 +148,7 @@ class DeckManagerApp(customtkinter.CTk):
     ###############
     ''' BUTTONS '''
     ###############
-    def create_buttons(self):
+    def create_navigation_buttons(self):
         # Main View Add Deck Button
         self.add_deck_button = customtkinter.CTkButton(self.navigation_frame, text="Add Deck", command=self.add_deck_popup)
         self.add_deck_button.grid(row=3, column=0, padx=20, pady=10, sticky="s")
@@ -159,8 +169,9 @@ class DeckManagerApp(customtkinter.CTk):
         self.import_from_file_button = customtkinter.CTkButton(self.navigation_frame, text="Import From File", command=self.import_from_file_popup)
         self.import_from_file_button.grid(row=7, column=0, padx=20, pady=5, sticky="s")
         
+    def create_filter_buttons(self):
         # apply filters button 
-        self.filter_button = CheckboxDropdown(self.filter_frame, text="Apply Filters", variables=self.special_filters | self.supertypes_filter | self.cardcolor_filter| self.cardtype_filter, command=self.display_cards)
+        self.filters_button = CheckboxDropdown(self.filter_frame, text="Apply Filters", variables=self.special_filters | self.supertypes_filter | self.cardcolor_filter| self.cardtype_filter, command=self.display_cards)
 
     #####################
     ''' Functionality '''
@@ -224,10 +235,12 @@ class DeckManagerApp(customtkinter.CTk):
             if col >= 6:
                 col = 0
                 row += 2
+
+
     #################
     ''' UI Events '''
     #################
-    
+
     def add_deck_popup(self):
         add_deck_window = customtkinter.CTkToplevel(self)
         add_deck_window.title("Add Deck")
@@ -425,5 +438,4 @@ class DeckManagerApp(customtkinter.CTk):
         self.selected_card_label.configure(text=f'{self.selected_card["name"]}, {self.selected_card["number"]}/{self.selected_card["set_total"]}') if self.selected_card else ""
 
 if __name__ == '__main__':
-    dma = DeckManagerApp()
-    dma.mainloop()
+    print("run with main.py")
