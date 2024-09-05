@@ -4,29 +4,30 @@ import requests
 from PIL import Image
 from io import BytesIO
 from pokemontcgsdk import Card
-
+import logging
+logger = logging.getLogger(__name__)
 class CardGenerator:
 
-    def get_card_details(self, name, number, set_total=None, promo=False):
+    def get_card_details(self, name, number, set_total=None, promo=False) -> dict | None:
         '''
             Query pokemontcg api using pokemontcg sdk.
             Return: dictionary representation of card information 
         '''
-        if set_total is not None:
-            query = f'name:"{name}" number:{number} set.printedTotal:{set_total}'
-        elif "Energy" in name and promo == False:
-            query = f'name:"{name}" number:{number}'
-        elif promo:
-            query = f'name:"{name}" number:{number} rarity:promo'
-        else:
-            raise ValueError("Invalid input parameters")
-
         try:
+            if set_total is not None:
+                query = f'name:"{name}" number:{number} set.printedTotal:{set_total}'
+            elif "Energy" in name and promo == False:
+                query = f'name:"{name}" number:{number}'
+            elif promo:
+                query = f'name:"{name}" number:{number} rarity:promo'
+            else:
+                return None
+                # raise ValueError("Invalid input parameters")
             tcg_card = Card.where(q=query)[0].to_dict()
-        except:
-            print(f"failed to find {name}, {number}")
-            return {}
-        
+        except Exception as e:
+            logger.debug(f'{name}, {number}/{set_total} promo: {promo} | Could not be found with SDK. Exception on next line\n{e}')
+            return None
+    
         set_id = tcg_card.get("set", {}).get("id", "none")
         set_name = tcg_card.get("set", {}).get("name", "none")
         set_series = tcg_card.get("set", {}).get("series", "none")
@@ -58,8 +59,6 @@ class CardGenerator:
                 "set_image_url": set_image_url,
                 "set_image_path": set_image_path
             }
-
-
     def __fetch_image(self, url: str | None = None, card_name: str | None = None, card_number: str | None = None, card_set_total: str | None = None, set_name: str | None = None, set_series: str | None = None, set_id: str | None = None):
         '''
             Generate image paths for set image and card image. 
@@ -73,16 +72,16 @@ class CardGenerator:
             image_path = os.path.join(folder_path, f'{set_id}.jpg')
         
         image_exists = self.does_file_exist(image_path)
-        folder_exists = self.create_folder_if_not_exists(folder_path=folder_path) # for cards with same name but different number and set total
 
-        if image_exists and folder_exists:
-            print(f'image exists: {image_exists}, folder exists: {folder_exists}')
+        if image_exists:
+            logger.info(f'image exists: {image_exists}')
             return image_path
         
+        self.create_folder_if_not_exists(folder_path=folder_path) # for cards with same name but different number and set total
         response = requests.get(url)
 
         if response.status_code != 200:
-            print(f"Failed to fetch image: {response.status_code}")
+            logger.info(f"Failed to fetch image: {response.status_code}")
             return None
         
         self.save_image(response.content, image_path=image_path)
@@ -94,7 +93,7 @@ class CardGenerator:
         ''' returns whether or not the file exists'''
         exists = os.path.exists(file_path)
         if exists:
-            print(f"File at {file_path} already exists")
+            logger.info(f"File at {file_path} already exists")
         return exists
     
     @staticmethod
@@ -103,12 +102,14 @@ class CardGenerator:
         try:
             os.makedirs(folder_path, exist_ok=False)
         except OSError:
-            print("Folder already exists")
-        print(f"Directory '{folder_path}' is ready.")
+            logger.info(f"Directory '{folder_path}' is ready.")
+            return True
         return True
     
     def save_image(self, content, image_path):
+
         img = Image.open(BytesIO(content))
         if img.mode in ("RGBA", "P"):
             img = img.convert('RGB')
         img.save(image_path)
+        logger.info(f'Image Saved at {image_path}')

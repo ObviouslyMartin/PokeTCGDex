@@ -2,10 +2,13 @@
 from card_database import CardDatabase
 from CardGenerator import CardGenerator
 import csv
-
+import logging
+import time
+logger = logging.getLogger(__name__)
 class Controller:
-    def __init__(self) -> None:
-        self.db = CardDatabase("test_db.db")
+    def __init__(self, db_path) -> None:
+        # self.db = CardDatabase("test_db.db")
+        self.db = CardDatabase(db_path=db_path)
         self.card_generator = CardGenerator()
 
     def add_to_db_from_input(self, card_name, card_number, set_total, amount, is_promo=False) -> None:
@@ -13,26 +16,29 @@ class Controller:
             Finds the card from the given input and tells the database to store the card
             Input from: DeckManagerApp.add_card_button_press_event()
         '''
-        card_ids_added = [] # for reference regarding added cards
+        # card_ids_added = [] # for reference regarding added cards
         # Find card from sdk and then store in databse, input might be incorrect yielding no sdk_card
-        try:
-            # query pokemon tcg sdk
-            sdk_card = self.card_generator.get_card_details(name=card_name, number=card_number, set_total=set_total, promo=bool(is_promo))
-            if not sdk_card:
-                print(f"contoller.add_to_db_from_input :: bad input\n{card_name}, {card_number}/{set_total}")
-                return 
-            
-            # add amount of cards to the database
-            for _ in range(int(amount)):
-                db_card_id = self.db.add_card(sdk_card)
-                print(f"new card id: {db_card_id}")
-                card_ids_added.append(db_card_id)
-            return card_ids_added
+        # try:,
+        # query pokemon tcg sdk
+        logging.debug(f'fetching {card_name}, {card_number}/{set_total} from SDK')
+        time.sleep(0.5)
+        sdk_card = self.card_generator.get_card_details(name=card_name, number=card_number, set_total=set_total, promo=bool(is_promo))
+        if not sdk_card:
+            logging.debug(f'Could not fetch {card_name}, {card_number}/{set_total} from SDK')
+            print(f"contoller.add_to_db_from_input :: bad input\n{card_name}, {card_number}/{set_total}")
+            return
+        
+        # add amount of cards to the database
+        logging.debug(f'Adding {card_name}, {card_number}/{set_total} to database')
+        db_card_id = self.db.add_card(sdk_card, int(amount))
+        logger.info(f"new card id: {db_card_id}")
+        # card_ids_added.append(db_card_id)
+        return
 
-        except Exception as e:
-            print("error in Controller.add_to_db_from_input()")
-            print(f"Exception: {e}")
-            return card_ids_added
+        # except Exception as e:
+        #     print("error in Controller.add_to_db_from_input()")
+        #     print(f"Exception: {e}")
+        #     return
         
     def create_deck_from_input(self, deck_name) -> int:
         '''
@@ -40,12 +46,9 @@ class Controller:
             returns deck_id
         '''
         deck_id = self.db.create_deck(deck_name=deck_name)
-        print(f'new deck_id: {deck_id}')
+        logger.info(f'new deck_id: {deck_id}')
         return deck_id
-        
-    def get_card(self, card_id):
-        card = self.db.get_card_by_id(card_id=card_id)
-        return {"name": card[1], "number": card[2], "set_total": card[3], "super_type":card[4], "card_type": card[5], "sub_type":card[6], "rarity":card[9]}
+
     
     def get_cards(self, deck_id=-1, filters=[]):
         '''
@@ -62,10 +65,9 @@ class Controller:
                         "card_type": row[4],
                         "sub_type": row[5],
                         "image_path": row[6],
-                        "all_card_ids":row[7],
-                        "not_in_deck_ids":row[8],
-                        "rarity":row[9],
-                        "ability":self.get_ability(card_id=row[10])
+                        "rarity":row[7],
+                        "ability":self.get_ability(card_id=row[8]),
+                        "quantity":self.db.get_quantity(deck_id=deck_id, card_id=row[8])
                     }
                     for row in db_cards
                 ]
@@ -85,35 +87,23 @@ class Controller:
         return decks
     
     def move_card_to_deck(self, deck_name, card_info, amount):
-
-        deck_id = self.db.get_deck_id_by_name(deck_name)[0]
-        if deck_id:
-            for _id in card_info["not_in_deck_ids"][:amount]:
-                print(f"moving card_id: {_id} to deck_id: {deck_id}")
-                self.db.move_card_to_deck(deck_id=deck_id, card_id=_id, count=1)
-        else:
-            print(f"invalid deck_id: {deck_id}")
+        return self.db.move_card_to_deck(deck_name=deck_name, card=card_info, count=amount)
         
-
+    
     def remove_card(self, deck_id, card, amount):
         '''
             removes card_ids from decks or from the database entirely
         '''
-        print("in controller remove_card()")
-        print(f'deck_id: {deck_id}')
-        print(f'card: {card}')
 
         if deck_id != -1:
             # only remove from deck
-            card_ids = self.db.get_in_deck_card_ids(card=card,deck_id=deck_id) # tuple of matching cards in deck
-            print(f'card ids in deck {card_ids}')
-            for _id in card_ids[:amount]:
-                print(self.db.remove_card_from_deck(deck_id=deck_id, card_id=_id))
+            removed = self.db.remove_card_from_deck(deck_id=deck_id, card=card, amount=amount)
+            logger.info(f'{removed}')
             return 
         # view is all cards -> delete from database
         if deck_id == -1:
             for _id in card["not_in_deck_ids"][:amount]:
-                print(self.db.delete_card(card_id=_id))
+                logger.info(f"{self.db.delete_card(card_id=_id)}")
             return
     
     
@@ -146,24 +136,18 @@ class Controller:
         with open(csv_file, newline='', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
-                db_card = self.db.get_card_info_by_name(name=row['name'], number=row['number'])
-                card_info = {
-                    "name": db_card[0],
-                    "number": db_card[1],
-                    "set_total": db_card[2],
-                    "super_type": db_card[3],
-                    "card_type": db_card[4],
-                    "sub_type": db_card[5],
-                    "image_path": db_card[6],
-                    "all_card_ids": db_card[7],
-                    "not_in_deck_ids":db_card[8]
-                    }
-                deck_exists = self.db.get_deck_id_by_name(row['deck_name'])
+                db_card = self.db.find_card(name=row['card_name'], number=row['card_number'])
+                if not db_card:
+                    # create new card and then move to deck
+                    db_card = self.add_to_db_from_input(card_name=row['card_name'], card_number=row['card_number'], set_total=row['card_set_total'], amount=row['amount'])
+
+                deck_exists = self.db.find_deck(row['deck_name'])
                 if not deck_exists:
                     print(f"deck name: {row['deck_name']} does not exist. Creating new deck...")
-                    self.db.create_deck(deck_name=row['deck_name'])
-                print(f"moving {card_info['name']}, {card_info['number']}/{card_info['set_total']} to deck: {row['deck_name']}")
-                self.move_card_to_deck(deck_name=row['deck_name'], card_info=card_info, amount=int(row['amount']))
+                    deck_exists = self.db.create_deck(deck_name=row['deck_name'])
+                
+                print(f"moving {row['card_name']}, {row['card_number']}/{row['card_set_total']} to deck: {row['deck_name']}")
+                self.db.move_card_to_deck(deck_name=row['deck_name'], card={"name": row['card_name'], "number":row['card_number']}, count=int(row['amount']))
 
     def get_ability(self, card_id):
        

@@ -4,8 +4,8 @@ import os
 from PIL import Image
 from card_database import CardDatabase
 from controller import Controller
-
-
+import logging
+logger = logging.getLogger(__name__)
 # The View
 class DeckManagerApp(customtkinter.CTk):
     WINDOW_HEIGHT = 1169
@@ -17,12 +17,7 @@ class DeckManagerApp(customtkinter.CTk):
         self.title("Deck Manager")
         self.geometry(f"{self.WINDOW_WIDTH}x{self.WINDOW_HEIGHT}")
         
-        # Determine the path to the database file
-        self.db_path = "db_path"
-
-        # Database
-        self.db = CardDatabase(self.db_path)
-        self.controller = Controller()
+        self.controller = Controller(db_path)
         
         # Set grid layout 1x2
         self.grid_rowconfigure(0, weight=1)
@@ -31,10 +26,8 @@ class DeckManagerApp(customtkinter.CTk):
         self.selected_deck_id = -1
         self.current_cards = None
 
-
         self.load_assets()
 
-        # Tese should be create_<frame_name>()
         self.create_main_frame()
         self.create_navigation_frame()
         self.create_filter_frame()
@@ -63,17 +56,6 @@ class DeckManagerApp(customtkinter.CTk):
     ##############
     ''' LAYOUT '''
     ##############
-    def create_filter_frame(self):
-         # Filter Buttons and Info
-        self.filter_frame = customtkinter.CTkFrame(self.main_frame)
-        self.filter_frame.grid(row=0, column=0, padx=20, pady=10, sticky="we")
-        self.filter_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
-
-        # total cards count     
-        self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
-        self.total_cards_label.grid(row=0,column=4, sticky='w')
-        self.create_filter_options()
-        self.create_filter_buttons()
 
     def create_main_frame(self):
         # Main View
@@ -86,6 +68,23 @@ class DeckManagerApp(customtkinter.CTk):
         self.card_display_frame = customtkinter.CTkScrollableFrame(self.main_frame)
         self.card_display_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nswe")
         self.card_display_frame.grid_columnconfigure(10, weight=1)
+    
+    def create_filter_frame(self):
+         # Filter Buttons and Info
+        self.filter_frame = customtkinter.CTkFrame(self.main_frame)
+        self.filter_frame.grid(row=0, column=0, padx=20, pady=10, sticky="we")
+        self.filter_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+
+        # search box
+        self.search_box = customtkinter.CTkEntry(master=self.filter_frame, width=280, placeholder_text="Search Cards...", )
+        self.search_box.grid(row=0,column=2, sticky='w')
+        self.search_button = customtkinter.CTkButton(self.filter_frame, width=70, text="Search", command=self.display_cards)
+        self.search_button.grid(row=0,column=3, sticky='w')
+        # total cards count     
+        self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
+        self.total_cards_label.grid(row=0,column=4, sticky='w')
+        self.create_filter_options()
+        self.create_filter_buttons()
 
     def create_navigation_frame(self):
         # Create navigation frame
@@ -177,7 +176,7 @@ class DeckManagerApp(customtkinter.CTk):
     ''' Functionality '''
     #####################
     def load_decks(self):
-        deck_names = ["-2: Not In Deck","-1: All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.controller.get_decks().items()]
+        deck_names = ["-1: All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.controller.get_decks().items()]
         self.deck_combobox.configure(values=deck_names)
 
     def on_deck_select(self, selected_deck):
@@ -186,21 +185,23 @@ class DeckManagerApp(customtkinter.CTk):
         self.display_cards()
 
     def __get_filters(self):
-        special = [type for type, var in self.special_filters.items() if var.get()]
-        super_types = [type for type, var in self.supertypes_filter.items() if var.get()]
-        color = [type for type, var in self.cardcolor_filter.items() if var.get()]
-        sub_type = [type for type, var in self.cardtype_filter.items() if var.get()]
-
+        # special = [type for type, var in self.special_filters.items() if var.get()]
+        # super_types = [type for type, var in self.supertypes_filter.items() if var.get()]
+        # color = [type for type, var in self.cardcolor_filter.items() if var.get()]
+        # sub_type = [type for type, var in self.cardtype_filter.items() if var.get()]
+        name = self.search_box.get()
+        print(name)
         ret_filters = {}
-        if len(special) != 0:
-            ret_filters["special"] = special
-        if len(super_types) != 0:
-            ret_filters["super_types"] = super_types
-        if len(color) != 0:
-            ret_filters["color"] = color
-        if len(sub_type) != 0:
-            ret_filters ["sub_type"] = sub_type
-        
+        # if len(special) != 0:
+        #     ret_filters["special"] = special
+        # if len(super_types) != 0:
+        #     ret_filters["super_types"] = super_types
+        # if len(color) != 0:
+        #     ret_filters["color"] = color
+        # if len(sub_type) != 0:
+        #     ret_filters ["sub_type"] = sub_type
+        if name:
+            ret_filters["name"] = name
         return ret_filters
         
 
@@ -227,9 +228,9 @@ class DeckManagerApp(customtkinter.CTk):
                                                 command=lambda card=card_info: self.card_picture_press_event(card))
             card_label.grid(row=row, column=col, padx=5, pady=5)
 
-            count_label = customtkinter.CTkLabel(self.card_display_frame, text=f"x{len(card_info['all_card_ids'])}", font=customtkinter.CTkFont(size=14))
+            count_label = customtkinter.CTkLabel(self.card_display_frame, text=f"x{card_info['quantity']}", font=customtkinter.CTkFont(size=14))
             count_label.grid(row=row+1, column=col, padx=5, pady=5)
-            num_cards += len(card_info['all_card_ids'])
+            num_cards += card_info['quantity']
             self.total_cards_label.configure(text=num_cards)
             col += 1
             if col >= 6:
@@ -415,7 +416,7 @@ class DeckManagerApp(customtkinter.CTk):
         deck_file_name = self.deck_file_name_entry.get()
 
         if not card_file_name and not deck_file_name:
-            print("missing file names")
+            logger.warning(f'card file name and deck file name are empty')
             self.remove_card_window.destroy()
             return
 

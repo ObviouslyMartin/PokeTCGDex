@@ -3,6 +3,8 @@ import csv
 import pandas as pd
 import io
 from CardGenerator import CardGenerator
+import logging
+logger = logging.getLogger(__name__)
 
 class CardDatabase:
     def __init__(self, db_path):
@@ -23,7 +25,8 @@ class CardDatabase:
             sub_type TEXT NOT NULL,
             image_url TEXT NOT NULL,
             image_path TEXT NOT NULL,
-            rarity TEXT NOT NULL
+            rarity TEXT NOT NULL,
+            quantity INTEGER NOT NULL 
         );
         ''')
 
@@ -50,6 +53,7 @@ class CardDatabase:
         CREATE TABLE IF NOT EXISTS deck_cards (
             deck_id INTEGER,
             card_id INTEGER,
+            quantity INTEGER,
             PRIMARY KEY (deck_id, card_id),
             FOREIGN KEY (deck_id) REFERENCES decks (id) ON DELETE CASCADE,
             FOREIGN KEY (card_id) REFERENCES cards (id) ON DELETE CASCADE
@@ -93,40 +97,37 @@ class CardDatabase:
     ########################################################
     ''' Add to DB '''
     ########################################################
-    def add_card(self, new_card: dict) -> int:
+    def add_card(self, new_card: dict, quantity) -> int:
         ''' 
         add new card or update count if already exists
         returns id of the last accessed id
         '''
         # Insert a new row if the card does not exist <count> times
+        exists = self.__card_exists(name=new_card["name"], number=new_card["number"], set_total=new_card["set_total"])
+        if exists:
+            # Card exists, update the quantity
+            return self.__update_card(exists, quantity) 
+        else:
+            card_id = self.__insert_card(new_card, quantity)
+            self.__update_sets(new_card["set_id"], new_card["set_name"], new_card["set_series"], new_card["set_image_url"], new_card["set_image_path"],card_id=card_id)
+            if new_card["ability"] is not None: # TODO: Handle updating ability tables when new card is added
+                self.__update_abilities(new_card["ability"], card_id=card_id)
+            self.conn.commit()
+            return card_id
+        
+    def __insert_card(self, card, quantity):
         self.cursor.execute(
-            "INSERT INTO cards (name, number, set_total, super_type, card_type, sub_type, image_url, image_path, rarity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO cards (name, number, set_total, super_type, card_type, sub_type, image_url, image_path, rarity, quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                new_card["name"], new_card["number"], new_card["set_total"],
-                new_card["super_type"], new_card["card_type"], new_card["sub_type"],
-                new_card["image_url"], new_card["image_path"], new_card["rarity"]
+                card["name"], card["number"], card["set_total"],
+                card["super_type"], card["card_type"], card["sub_type"],
+                card["image_url"], card["image_path"], card["rarity"],
+                quantity
             )
         )
         card_id = self.cursor.lastrowid  # Get the last inserted id
-        self.__update_sets(new_card["set_id"], new_card["set_name"], new_card["set_series"], new_card["set_image_url"], new_card["set_image_path"],card_id=card_id)
-        if new_card["ability"] is not None: # TODO: Handle updating ability tables when new card is added
-            self.__update_abilities(new_card["ability"], card_id=card_id)
-        self.conn.commit()
         return card_id
-
-    def move_card_to_deck(self, deck_id, card_id, count):
-        
-        if not self.__can_add_to_deck(deck_id, card_id, count):
-            return "Cannot add more than 4 of the same card or exceed the deck limit of 60 cards"
-
-        self.cursor.execute(
-            "INSERT INTO deck_cards (deck_id, card_id) VALUES (?, ?)",
-            (deck_id, card_id)
-        )
-        
-        self.conn.commit()
-        return "Card added successfully"
-
+    
     def create_deck(self, deck_name) -> int:
         deck_id = self.get_deck_id_by_name(deck_name)
         if deck_id:
@@ -142,7 +143,17 @@ class CardDatabase:
     ########################################################
     ''' Get things '''
     ########################################################
-    
+    def find_card(self,name, number):
+        found = self.__get_card_id_by_name(name=name, number=number)
+        if found:
+            return True
+        return False
+    def find_deck(self, deck_name):
+        self.cursor.execute("""SELECT * from decks where name = ? """, (deck_name,))
+        found = self.cursor.fetchall()
+        if found:
+            return True
+        return False
     def get_cards_with_detailed_amount(self, deck_id=-1, filters=[]):
         """
             Retrieves a list of cards from the cards table and augments each entry with two lists:
@@ -162,8 +173,6 @@ class CardDatabase:
                 cards.card_type,
                 cards.sub_type,
                 cards.image_path,
-                GROUP_CONCAT(cards.id) as all_card_ids,
-                GROUP_CONCAT(CASE WHEN cards.id NOT IN (SELECT deck_cards.card_id FROM deck_cards) THEN cards.id ELSE NULL END) as not_in_deck_ids,
                 cards.rarity,
                 cards.id
             FROM cards
@@ -185,30 +194,13 @@ class CardDatabase:
 
         # Fetch and return results
         results = self.cursor.fetchall()
-        
-        # Process results to ensure NULL values in not_in_deck_ids are handled as empty lists
-        processed_results = []
-        for row in results:
-            # Convert tuple to list for mutable operations
-            mutable_row = list(row)
-            
-            # Add two new attributes by converting CSV string to list of integers, handle NULL cases
-            all_card_ids = list(map(int, mutable_row[7].split(','))) if mutable_row[7] else []
-            not_in_deck_ids = list(map(int, mutable_row[8].split(','))) if mutable_row[8] else []
-            
-            # Append new attributes
-            mutable_row[7] = (all_card_ids)
-            mutable_row[8] = (not_in_deck_ids)
-            
-            # Convert back to tuple if necessary and append to final results
-            processed_results.append(tuple(mutable_row))
-
-        return tuple(processed_results)
+        return results
+    
      
     def get_decks(self, deck_id=-1):
         '''
         Gets all deck names and ids in database
-        returns dictinoary object for each deck
+        returns dictionary object for each deck
         '''
         if deck_id == -1:
             self.cursor.execute("SELECT id, name FROM decks")
@@ -238,8 +230,35 @@ class CardDatabase:
         self.cursor.execute("SELECT id FROM decks WHERE name = ?", (deck_name,))
         return self.cursor.fetchone()
     
+    def get_quantity(self, card_id, deck_id=-1):
+        if deck_id==-1:
+            self.cursor.execute("SELECT quantity FROM cards WHERE id = ?", (card_id,))
+        else:
+            self.cursor.execute("SELECT quantity FROM deck_cards WHERE card_id = ? AND deck_id = ?", (card_id, deck_id))
+        count = self.cursor.fetchone()
+        if count:
+            return count[0]
+        else:
+            return 0
+        
+    def __get_card_id_by_name(self, name, number):
+        """
+        returns card id given a name and number
+        """
+        # SQL query to fetch the specified card details along with all matching card_ids
+        query = """
+            SELECT 
+                id
+            FROM cards
+            WHERE name = ? AND number = ?
+        """
+        self.cursor.execute(query, (name, number))
+        
+        # Fetch and return results
+        result = self.cursor.fetchone()
+        return result
     def get_card_by_id(self,card_id):
-        ''''''
+        '''UNUSED'''
         return self.__get_card(card_id=card_id)
     
     def get_ability(self, card_id):
@@ -253,62 +272,95 @@ class CardDatabase:
         """
         self.cursor.execute(query, (card_id,))
         return self.cursor.fetchone()
+    
     ########################################################
     ''' Remove items '''
     ########################################################
 
-    def remove_all(self):
-        inp = input("WARNING: This cannot be undone. Proceed?\nY / N: ")
-        if inp != 'Y':
-            print("Aborting...")
-            return
+    # def remove_all(self):
+    #     inp = input("WARNING: This cannot be undone. Proceed?\nY / N: ")
+    #     if inp != 'Y':
+    #         print("Aborting...")
+    #         return
         
-        print("Emptying the database...")
-        cards = [_id[0] for _id in self.__get_all_card_ids()]
-        decks = [_id[0] for _id in self.__get_all_deck_ids()]
-        for card in cards:
-            self.delete_card(card_id=card)
-        for deck in decks:
-            self.delete_deck(deck_id=deck)
+    #     print("Emptying the database...")
+    #     cards = [_id[0] for _id in self.__get_all_card_ids()]
+    #     decks = [_id[0] for _id in self.__get_all_deck_ids()]
+    #     for card in cards:
+    #         self.delete_card(card_id=card)
+    #     for deck in decks:
+    #         self.delete_deck(deck_id=deck)
 
 
-    def remove_card_from_deck(self, deck_id, card_id):
+    def remove_card_from_deck(self, deck_id, card, amount):
         # ensure card exists
-        exists = self.__get_card(card_id=card_id)
-        if exists:
+        card_id = self.__get_card_id_by_name(name=card["name"], number=card["number"])
+        if not card_id: 
+            return 0
+        quantity = self.get_quantity(card_id=card_id[0], deck_id=deck_id)
+        if quantity <= amount:
+            # delete all
             self.cursor.execute(
-                "DELETE FROM deck_cards WHERE deck_id = ? AND card_id = ?", (deck_id, card_id)
+                "DELETE FROM deck_cards WHERE deck_id = ? AND card_id = ?", (deck_id, card_id[0])
             )
-            self.conn.commit()
-            return self.cursor.rowcount  # Returns the number of rows affected
-        return 0
+        else:
+            new_quantity = quantity - amount
+            self.cursor.execute("UPDATE deck_cards SET quantity = ? WHERE deck_id = ? AND card_id = ?", (new_quantity, deck_id, card_id[0]))
+        self.conn.commit()
+        return self.cursor.rowcount  # Returns the number of rows affected
     
     def delete_card(self, card_id):
-        print(f"DB: about to delete {card_id}")
+        logger.info(f"DB: about to delete {card_id}")
         exists = self.__check_card(card_id=card_id)
         if not exists:
-            return "Card not found"
-
+            return 0
         self.cursor.execute(
             "DELETE FROM cards WHERE id = ?", (card_id,)
-        )
-        self.cursor.execute(
-            "DELETE FROM deck_cards WHERE card_id = ?", (card_id,)
         )
 
         self.conn.commit()
         return self.cursor.rowcount  # Returns the number of rows affected
 
     def delete_deck(self, deck_id):
-        self.cursor.execute(
-            "DELETE FROM deck_cards WHERE deck_id = ?", (deck_id,)
-        )
+        exists = self.__deck_exists(deck_id=deck_id)
+        if not exists:
+            return 0
         self.cursor.execute(
             "DELETE FROM decks WHERE id = ?", (deck_id,)
         )
         self.conn.commit()
         return self.cursor.rowcount  # Returns the number of rows affected
 
+    ####################
+    ''' Update Items '''
+    ####################
+    def move_card_to_deck(self, deck_name, card, count):
+        card_id = self.__get_card_id_by_name(card["name"], card["number"])
+        deck_id = self.get_deck_id_by_name(deck_name)
+        if deck_id and card_id:
+            logger.info(f"moving card_id: {card_id} to deck_id: {deck_id}")
+            return self.__move_card_to_deck(deck_id=deck_id[0], card_id=card_id[0], count=count)
+        logger.info(f"Could not move card_id: {card_id} to deck_id: {deck_id}")
+        return "Card or Deck not found"
+    
+    def __move_card_to_deck(self, deck_id, card_id, count):
+        
+        if not self.__can_add_to_deck(deck_id, card_id, count):
+            return "Cannot add more than 4 of the same card or exceed the deck limit of 60 cards"
+        card_already_in_deck = self.__find_in_deck(deck_id,card_id)
+        if card_already_in_deck:
+            # Card already in the deck, update the quantity
+            new_quantity = card_already_in_deck[0] + count
+            self.cursor.execute("UPDATE deck_cards SET quantity = ? WHERE deck_id = ? AND card_id = ?", (new_quantity, deck_id, card_id))
+        else:
+            self.cursor.execute(
+                "INSERT INTO deck_cards (deck_id, card_id, quantity) VALUES (?, ?, ?)",
+                (deck_id, card_id, count)
+            )
+        
+        self.conn.commit()
+        return "Card added successfully"
+    
     ########################################################
     ''' Show items '''
     ########################################################
@@ -319,9 +371,9 @@ class CardDatabase:
         # ret_string += f'\nTotal Decks: {self.get_total_deck_count()[0]}'
         # # ret_string += self.__show_deck_cards_table(deck_id=1)
         """Displays the structure and contents of all tables in a SQLite database."""
-        return self.display_database_info_pandas_string()
+        return self.__display_database_info_pandas_string()
 
-    def display_database_info_pandas_string(self):
+    def __display_database_info_pandas_string(self):
         """Displays the structure and contents of all tables in the SQLite database using pandas and returns the result as a string."""
         output = io.StringIO()
 
@@ -365,17 +417,28 @@ class CardDatabase:
     ########################################################
     ''' Private items '''
     ########################################################
+    def __find_in_deck(self, deck_id, card_id):
+        self.cursor.execute("SELECT quantity FROM deck_cards WHERE deck_id = ? AND card_id = ?", (deck_id, card_id))
+        result = self.cursor.fetchone()
+        return result
+    
+    def __update_card(self, card, quantity):
+        new_quantity = card[1] + (quantity)  # Default to adding one more card #quatity
+        self.cursor.execute("UPDATE cards SET quantity = ? WHERE id = ?", (new_quantity, card[0])) #id
+        return self.cursor.lastrowid
+    
     def __apply_filters(self, base_query, filters):
-        
-        if 'super_types' in filters:
-            base_query += f" WHERE cards.super_type IN {self.__format_filter(filters, 'super_types')}"
-        if 'color' in filters and 'sub_type' not in filters:
-            base_query += f" AND cards.card_type IN {self.__format_filter(filters, 'color')}"
+        if 'name' in filters:
+            base_query += f"WHERE cards.name like '%{filters['name']}%'"
+        # if 'super_types' in filters:
+        #     base_query += f" WHERE cards.super_type IN {self.__format_filter(filters, 'super_types')}"
+        # if 'color' in filters and 'sub_type' not in filters:
+        #     base_query += f" AND cards.card_type IN {self.__format_filter(filters, 'color')}"
         # elif 'sub_type' in filters and 'color' not in filters:
         #     base_query += f" AND cards.sub_type IN ({self.__format_filter(filters, 'sub_type', comma_list=True)}"
         # elif 'color' in filters and 'sub_type' in filters:
         #     base_query += f" AND (cards.sub_type IN ({self.__format_filter(filters, 'sub_type')} OR cards.card_type IN {self.__format_filter(filters, 'color')})"
-        print(f"base_query: {base_query}")
+        # print(f"base_query: {base_query}")
         return base_query
     def __format_filter(self, filters, item, comma_list=False):
         # Retrieve the list of super types from the dictionary or default to an empty list if not present
@@ -417,7 +480,15 @@ class CardDatabase:
     def __deck_exists(self, deck_id) -> tuple | None:
         self.cursor.execute("SELECT id FROM decks WHERE id = ?", (deck_id,))
         return self.cursor.fetchone()
-
+    
+    def __card_exists(self, name=None, number=None, set_total=None, card_id=None) -> tuple | None:
+        if card_id:
+            self.cursor.execute("SELECT id, quantity FROM cards WHERE id = ?", (card_id,))    
+        else:    
+            self.cursor.execute("SELECT id, quantity FROM cards WHERE name = ? AND number = ? AND set_total = ?", (name, number, set_total))
+        result = self.cursor.fetchone()
+        return result
+    
     def __check_card(self, card_id):
         self.cursor.execute(
             """SELECT * FROM cards WHERE id = ?""",
@@ -425,50 +496,6 @@ class CardDatabase:
         )
         card_details = self.cursor.fetchone()
         return card_details
-    def get_card_info_by_name(self, name, number):
-        """
-        Retrieves details for a specific card identified by name, number, and set_total from the cards table
-        and augments the entry with two lists:
-        1) all_card_ids: All card_ids that match the specified name, number, and set_total in the cards table.
-        2) not_in_deck_ids: All card_ids that match the specified name, number, and set_total and are not associated with any deck.
-        """
-        # SQL query to fetch the specified card details along with all matching card_ids
-        query = """
-            SELECT 
-                name,
-                number, 
-                set_total,
-                super_type,
-                card_type,
-                sub_type,
-                image_path,
-                GROUP_CONCAT(cards.id) as all_card_ids,
-                GROUP_CONCAT(CASE WHEN cards.id NOT IN (SELECT card_id FROM deck_cards) THEN cards.id ELSE NULL END) as not_in_deck_ids
-            FROM cards
-            WHERE name = ? AND number = ?
-            GROUP BY name, number, set_total
-        """
-        self.cursor.execute(query, (name, number))
-        
-        # Fetch and return results
-        result = self.cursor.fetchone()
-        
-        if result:
-            # Convert tuple to list for mutable operations
-            mutable_row = list(result)
-            
-            # Add two new attributes by converting CSV string to list of integers, handle NULL cases
-            all_card_ids = list(map(int, mutable_row[7].split(','))) if mutable_row[7] else []
-            not_in_deck_ids = list(map(int, mutable_row[8].split(','))) if mutable_row[8] else []
-            
-            # Append new attributes
-            mutable_row[7] = (all_card_ids)
-            mutable_row[8] = (not_in_deck_ids)
-            
-            # Convert back to tuple if necessary
-            return tuple(mutable_row)
-        else:
-            return None  # No such card found
     
     def __get_card(self, card_id):
         """
@@ -540,9 +567,11 @@ class CardDatabase:
         '''
             returns the number of cards in a deck
         '''
-        self.cursor.execute("SELECT Count(*) FROM deck_cards WHERE deck_id = ?", (deck_id,))
+        self.cursor.execute("SELECT SUM(quantity) as total_cards FROM deck_cards WHERE deck_id = ?", (deck_id,))
         result = self.cursor.fetchone()
         if not result:
+            return 0
+        if result[0] == None:
             return 0
         return result[0]
     
@@ -550,7 +579,7 @@ class CardDatabase:
         '''
             returns is the card_id a basic energy card?
         '''
-        self.cursor.execute("Select name, super_type FROM cards WHERE id = ?", (card_id,))
+        self.cursor.execute("Select sub_type, super_type FROM cards WHERE id = ?", (card_id,))
         card = self.cursor.fetchone()
         # print(f'super_type == {super_type[0]}')
 
@@ -561,10 +590,10 @@ class CardDatabase:
             Check if adding to deck exceeds constraints
             Check current total number of cards in the deck
         '''
-        if not self.__deck_exists(deck_id):
-            return False
-        if not self._card_exists(card_id):
-            return False
+        # if not self.__deck_exists(deck_id):
+        #     return False
+        # if not self.__card_exists(card_id=card_id):
+        #     return False
         
         deck_size = self.__get_deck_size(deck_id)
 
@@ -644,7 +673,7 @@ class CardDatabase:
     
     def __assocaite_ability(self,card_id,ability_id):
         self.cursor.execute(
-            "INSERT INTO card_abilities (card_id, ability_id) VALUES (?, ?)",
+            """INSERT INTO card_abilities (card_id, ability_id) VALUES (?, ?)""",
             (card_id, ability_id)
         )
         self.conn.commit()
@@ -653,7 +682,7 @@ class CardDatabase:
     def __add_card_to_set(self, set_uid, card_id):
 
         self.cursor.execute(
-            "INSERT INTO set_cards (set_id, card_id) VALUES (?, ?)",
+            """INSERT INTO set_cards (set_id, card_id) VALUES (?, ?)""",
             (set_uid, card_id)
         )
         
