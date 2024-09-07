@@ -167,6 +167,9 @@ class DeckManagerApp(customtkinter.CTk):
         # Main view Import From File Button
         self.import_from_file_button = customtkinter.CTkButton(self.navigation_frame, text="Import From File", command=self.import_from_file_popup)
         self.import_from_file_button.grid(row=7, column=0, padx=20, pady=5, sticky="s")
+
+        self.export_to_file_button = customtkinter.CTkButton(self.navigation_frame, text="Export To File", command=self.controller.export_db)
+        self.export_to_file_button.grid(row=8, column=0, padx=20, pady=5, sticky="s")
         
     def create_filter_buttons(self):
         # apply filters button 
@@ -370,6 +373,7 @@ class DeckManagerApp(customtkinter.CTk):
 
         self.import_button = customtkinter.CTkButton(self.import_file_window, text="Import", command=self.file_import_confirm_button_press_event)
         self.import_button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
+
 
     def add_card_button_press_event(self):
         ''' 

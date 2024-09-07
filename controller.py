@@ -73,7 +73,7 @@ class Controller:
                 ]
         return sorted(cards, key=lambda card: card["name"])
             
-    def get_decks(self,deck_id=-1):
+    def get_decks(self):
         '''
         query database for decks
         returns dict of decks
@@ -82,7 +82,7 @@ class Controller:
             row[0]:{
                 "name": row[1]
             }
-            for row in (self.db.get_decks(deck_id=deck_id))
+            for row in (self.db.get_decks())
         }
         return decks
     
@@ -94,18 +94,9 @@ class Controller:
         '''
             removes card_ids from decks or from the database entirely
         '''
-
-        if deck_id != -1:
-            # only remove from deck
-            removed = self.db.remove_card_from_deck(deck_id=deck_id, card=card, amount=amount)
-            logger.info(f'{removed}')
-            return 
-        # view is all cards -> delete from database
-        if deck_id == -1:
-            for _id in card["not_in_deck_ids"][:amount]:
-                logger.info(f"{self.db.delete_card(card_id=_id)}")
-            return
-    
+        removed = self.db.remove_card_from_deck(deck_id=deck_id, card=card, amount=amount)
+        logger.info(f'removed {removed} from deck')
+        return 
     
     def load_cards_from_csv(self, csv_file='cards.csv'):
         '''
@@ -160,3 +151,6 @@ class Controller:
             "description":ability[1]
         }
         return ret_ability
+
+    def export_db(self):
+        self.db.to_csv()
