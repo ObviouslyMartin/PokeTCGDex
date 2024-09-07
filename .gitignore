@@ -9,3 +9,5 @@ cards.csv
 decks.csv
 extras/*
 Sets/*
+*.log
+*.txt
