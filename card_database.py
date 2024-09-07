@@ -12,6 +12,7 @@ class CardDatabase:
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self.__create_tables()
+        self.__create_indexes()
 
     def __create_tables(self):
         self.cursor.execute('''
@@ -89,7 +90,13 @@ class CardDatabase:
         
         self.conn.commit()
         # self.conn.close()
-        
+    
+    def __create_indexes(self):
+        # Indexes for optimizing queries on commonly searched fields
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_cards_name_number_set ON cards (name, number, set_total);")
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_deck_cards_deck_id ON deck_cards (deck_id);")
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_deck_cards_card_id ON deck_cards (card_id);")
+        self.conn.commit() 
     def close_connection(self):
         '''Close the database connection when no longer needed.'''
         self.conn.close()
@@ -634,7 +641,5 @@ class CardDatabase:
             writer.writerow(['deck_name', 'card_name', 'card_number', 'card_set_total', 'amount'])  # Include the header for amount
             writer.writerows(rows)
 
-    
-    
 if __name__ == '__main__':
     print("nothing to run")
