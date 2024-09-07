@@ -2,7 +2,6 @@ import customtkinter
 from card_filter_window import CheckboxDropdown
 import os
 from PIL import Image
-from card_database import CardDatabase
 from controller import Controller
 import logging
 logger = logging.getLogger(__name__)
@@ -41,8 +40,8 @@ class DeckManagerApp(customtkinter.CTk):
     ##############
     def load_assets(self):
         # Load images
-        path_to_images = "assets"
-        image_path = path_to_images
+
+        image_path = "assets"
         self.logo_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "logo_crop.png")), size=(150, 150))
         self.large_test_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "home_large.png")), size=(500, 150))
         self.image_icon_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "image_icon_light.png")), size=(20, 20))
@@ -148,29 +147,22 @@ class DeckManagerApp(customtkinter.CTk):
     ''' BUTTONS '''
     ###############
     def create_navigation_buttons(self):
-        # Main View Add Deck Button
-        self.add_deck_button = customtkinter.CTkButton(self.navigation_frame, text="Add Deck", command=self.add_deck_popup)
-        self.add_deck_button.grid(row=3, column=0, padx=20, pady=10, sticky="s")
-        
-        # Main view Add Card button
-        self.add_card_button = customtkinter.CTkButton(self.navigation_frame, text="Add Card", command=self.add_card_popup)
-        self.add_card_button.grid(row=4, column=0, padx=20, pady=5, sticky="s")
+        button_configs = [
+            ("Add Deck", self.add_deck_popup, 3),
+            ("Add Card", self.add_card_popup, 4),
+            ("Move Card to Deck", self.move_card_to_deck_popup, 5),
+            ("Remove Card From Deck", self.remove_card_popup, 6),
+            ("Import From File", self.import_from_file_popup, 7),
+            ("Export To File", self.controller.export_db, 8),
+        ]
+        for text, command, row in button_configs:
+            self.create_button(self.navigation_frame, text, command, row, 0, sticky='s')
 
-        # Main view Move Card to deck button
-        self.move_card_to_deck_button = customtkinter.CTkButton(self.navigation_frame, text="Move Card to Deck", command=self.move_card_to_deck_popup)
-        self.move_card_to_deck_button.grid(row=5, column=0, padx=20, pady=5, sticky="s")
-        
-        # Main view Remove Card from deck button
-        self.remove_card_to_deck_button = customtkinter.CTkButton(self.navigation_frame, text="Remove Card From Deck", command=self.remove_card_popup)
-        self.remove_card_to_deck_button.grid(row=6, column=0, padx=20, pady=5, sticky="s")
-
-        # Main view Import From File Button
-        self.import_from_file_button = customtkinter.CTkButton(self.navigation_frame, text="Import From File", command=self.import_from_file_popup)
-        self.import_from_file_button.grid(row=7, column=0, padx=20, pady=5, sticky="s")
-
-        self.export_to_file_button = customtkinter.CTkButton(self.navigation_frame, text="Export To File", command=self.controller.export_db)
-        self.export_to_file_button.grid(row=8, column=0, padx=20, pady=5, sticky="s")
-        
+    def create_button(self, frame, text, command, row, column, pady=10, padx=20, sticky=""):
+        button = customtkinter.CTkButton(frame, text=text, command=command)
+        button.grid(row=row, column=column, padx=padx, pady=pady, sticky=sticky)
+        return button
+    
     def create_filter_buttons(self):
         # apply filters button 
         self.filters_button = CheckboxDropdown(self.filter_frame, text="Apply Filters", variables=self.special_filters | self.supertypes_filter | self.cardcolor_filter| self.cardtype_filter, command=self.display_cards)
@@ -264,8 +256,9 @@ class DeckManagerApp(customtkinter.CTk):
             else:
                 print("Deck name is required")
 
-        submit_button = customtkinter.CTkButton(add_deck_window, text="Add Deck", command=submit_add_deck)
-        submit_button.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
+        self.create_button(add_deck_window, "Add Deck", command=submit_add_deck, row=1, column=1, padx=10, pady=10)
+        # submit_button = customtkinter.CTkButton(add_deck_window, text="Add Deck", command=submit_add_deck)
+        # submit_button.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
 
     def add_card_popup(self):
         if self.selected_deck_id is None:
@@ -355,9 +348,9 @@ class DeckManagerApp(customtkinter.CTk):
         self.submit_button.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
     
     def import_from_file_popup(self):
+
         self.import_file_window = customtkinter.CTkToplevel(self)
         self.import_file_window.title("Import From File")
-
 
         self.card_file_name_label = customtkinter.CTkLabel(self.import_file_window, text="Card File Name:")
         self.card_file_name_label.grid(row=1, column=0, padx=10, pady=10)
