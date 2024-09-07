@@ -110,7 +110,7 @@ class CardDatabase:
         else:
             card_id = self.__insert_card(new_card, quantity)
             self.__update_sets(new_card["set_id"], new_card["set_name"], new_card["set_series"], new_card["set_image_url"], new_card["set_image_path"],card_id=card_id)
-            if new_card["ability"] is not None: # TODO: Handle updating ability tables when new card is added
+            if new_card["ability"] is not None:
                 self.__update_abilities(new_card["ability"], card_id=card_id)
             self.conn.commit()
             return card_id
