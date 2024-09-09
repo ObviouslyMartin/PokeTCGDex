@@ -96,7 +96,6 @@ class Controller:
         '''
         removed = self.db.remove_card_from_deck(deck_id=deck_id, card=card, amount=amount)
         logger.info(f'removed {removed} from deck')
-        return 
     
     def load_cards_from_csv(self, csv_file='cards.csv'):
         '''
@@ -127,18 +126,18 @@ class Controller:
         with open(csv_file, newline='', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
-                db_card = self.db.find_card(name=row['card_name'], number=row['card_number'])
+                db_card = self.db.find_card(name=row['name'], number=row['number'])
                 if not db_card:
                     # create new card and then move to deck
-                    db_card = self.add_to_db_from_input(card_name=row['card_name'], card_number=row['card_number'], set_total=row['card_set_total'], amount=row['amount'])
+                    db_card = self.add_to_db_from_input(card_name=row['name'], card_number=row['number'], set_total=row['set_total'], amount=row['amount'])
 
                 deck_exists = self.db.find_deck(row['deck_name'])
                 if not deck_exists:
                     print(f"deck name: {row['deck_name']} does not exist. Creating new deck...")
                     deck_exists = self.db.create_deck(deck_name=row['deck_name'])
                 
-                print(f"moving {row['card_name']}, {row['card_number']}/{row['card_set_total']} to deck: {row['deck_name']}")
-                self.db.move_card_to_deck(deck_name=row['deck_name'], card={"name": row['card_name'], "number":row['card_number']}, count=int(row['amount']))
+                print(f"moving {row['name']}, {row['number']}/{row['set_total']} to deck: {row['deck_name']}")
+                self.db.move_card_to_deck(deck_name=row['deck_name'], card={"name": row['name'], "number":row['number']}, count=int(row['amount']))
 
     def get_ability(self, card_id):
        

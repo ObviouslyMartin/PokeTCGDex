@@ -9,29 +9,20 @@ logger = logging.getLogger(__name__)
 class DeckManagerApp(customtkinter.CTk):
     WINDOW_HEIGHT = 1169
     WINDOW_WIDTH = 1800
-   
+
     def __init__(self, db_path):
         super().__init__()
-        
+
         self.title("Deck Manager")
         self.geometry(f"{self.WINDOW_WIDTH}x{self.WINDOW_HEIGHT}")
-        
+
         self.controller = Controller(db_path)
-        
-        # Set grid layout 1x2
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
-        
         self.selected_deck_id = -1
+        self.selected_card = ""
         self.current_cards = None
 
         self.load_assets()
-
-        self.create_main_frame()
-        self.create_navigation_frame()
-        self.create_filter_frame()
-        
-        # load cards and decks
+        self.setup_layout()
         self.load_decks()
         self.display_cards()
 
@@ -39,79 +30,77 @@ class DeckManagerApp(customtkinter.CTk):
     ''' Assets '''
     ##############
     def load_assets(self):
-        # Load images
-
         image_path = "assets"
-        self.logo_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "logo_crop.png")), size=(150, 150))
-        self.large_test_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "home_large.png")), size=(500, 150))
-        self.image_icon_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "image_icon_light.png")), size=(20, 20))
-        self.home_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "home_dark.png")),
-                                                 dark_image=Image.open(os.path.join(image_path, "home_light.png")), size=(20, 20))
-        self.deck_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "deck.png")),
-                                                 dark_image=Image.open(os.path.join(image_path, "deck.png")), size=(20, 20))
-        self.add_user_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "add_user_dark.png")),
-                                                     dark_image=Image.open(os.path.join(image_path, "add_user_light.png")), size=(20, 20))
-        
+        self.images = {
+            "logo": customtkinter.CTkImage(Image.open(os.path.join(image_path, "logo_crop.png")), size=(150, 150)),
+            "large_test": customtkinter.CTkImage(Image.open(os.path.join(image_path, "home_large.png")), size=(500, 150)),
+            "image_icon": customtkinter.CTkImage(Image.open(os.path.join(image_path, "image_icon_light.png")), size=(20, 20)),
+            "home": customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "home_dark.png")),
+                                          dark_image=Image.open(os.path.join(image_path, "home_light.png")), size=(20, 20)),
+            "deck": customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "deck.png")),
+                                          dark_image=Image.open(os.path.join(image_path, "deck.png")), size=(20, 20)),
+            "add_user": customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "add_user_dark.png")),
+                                              dark_image=Image.open(os.path.join(image_path, "add_user_light.png")), size=(20, 20))
+        } 
+    
     ##############
     ''' LAYOUT '''
     ##############
+    def setup_layout(self):
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+
+        self.create_main_frame()
+        self.create_navigation_frame()
+        self.create_filter_frame()
 
     def create_main_frame(self):
-        # Main View
         self.main_frame = customtkinter.CTkFrame(self, corner_radius=0)
         self.main_frame.grid(row=0, column=1, sticky="nswe")
         self.main_frame.grid_rowconfigure(1, weight=1)
         self.main_frame.grid_columnconfigure(0, weight=1)
 
-        # Card Display Frame
         self.card_display_frame = customtkinter.CTkScrollableFrame(self.main_frame)
         self.card_display_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nswe")
         self.card_display_frame.grid_columnconfigure(10, weight=1)
     
     def create_filter_frame(self):
-         # Filter Buttons and Info
         self.filter_frame = customtkinter.CTkFrame(self.main_frame)
         self.filter_frame.grid(row=0, column=0, padx=20, pady=10, sticky="we")
         self.filter_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
-        # search box
-        self.search_box = customtkinter.CTkEntry(master=self.filter_frame, width=280, placeholder_text="Search Cards...", )
-        self.search_box.grid(row=0,column=2, sticky='w')
+        self.search_box = customtkinter.CTkEntry(master=self.filter_frame, width=280, placeholder_text="Search Cards...")
+        self.search_box.grid(row=0, column=2, sticky='w')
         self.search_button = customtkinter.CTkButton(self.filter_frame, width=70, text="Search", command=self.display_cards)
-        self.search_button.grid(row=0,column=3, sticky='w')
-        # total cards count     
+        self.search_button.grid(row=0, column=3, sticky='w')
         self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
-        self.total_cards_label.grid(row=0,column=4, sticky='w')
+        self.total_cards_label.grid(row=0, column=4, sticky='w')
+
         self.create_filter_options()
-        self.create_filter_buttons()
 
     def create_navigation_frame(self):
-        # Create navigation frame
         self.navigation_frame = customtkinter.CTkFrame(self, corner_radius=0)
         self.navigation_frame.grid(row=0, column=0, sticky="nswe")
         self.navigation_frame.grid_rowconfigure(10, weight=1)
-        
-        self.logo_label = customtkinter.CTkLabel(self.navigation_frame, image=self.logo_image, text="")
+
+        self.logo_label = customtkinter.CTkLabel(self.navigation_frame, image=self.images["logo"], text="")
         self.logo_label.grid(row=0, column=0, padx=20, pady=10)
 
         self.title_label = customtkinter.CTkLabel(self.navigation_frame, text="Poké TCG Dex", font=customtkinter.CTkFont(size=20, weight="bold"))
         self.title_label.grid(row=1, column=0, padx=20, pady=10)
 
-        # Deck List Drop Down
-        self.deck_var = customtkinter.StringVar(value="All Cards")
-        self.deck_combobox = customtkinter.CTkComboBox(self.navigation_frame, variable=self.deck_var, values=[], command=self.on_deck_select)
+        self.deck_combobox = customtkinter.CTkComboBox(self.navigation_frame, variable=self.selected_deck_id, values=[], command=self.on_deck_select)
         self.deck_combobox.grid(row=2, column=0, padx=20, pady=10, sticky="nswe")
 
-        # selected card text
-        self.selected_card = ""
         self.selected_card_label = customtkinter.CTkLabel(self.navigation_frame, text=self.selected_card)
-        self.selected_card_label.grid(row=8, column=0, padx=10, pady=10)
-        
+        self.selected_card_label.grid(row=10, column=0, padx=10, pady=10)
+
         self.create_navigation_buttons()
 
     ######################
     ''' Filter Options '''
     ######################
+    
     def create_filter_options(self):
         # Checkbox options
         self.special_filters = { #sdk_card["abilities"]
@@ -146,6 +135,7 @@ class DeckManagerApp(customtkinter.CTk):
     ###############
     ''' BUTTONS '''
     ###############
+
     def create_navigation_buttons(self):
         button_configs = [
             ("Add Deck", self.add_deck_popup, 3),
@@ -164,8 +154,9 @@ class DeckManagerApp(customtkinter.CTk):
         return button
     
     def create_filter_buttons(self):
-        # apply filters button 
-        self.filters_button = CheckboxDropdown(self.filter_frame, text="Apply Filters", variables=self.special_filters | self.supertypes_filter | self.cardcolor_filter| self.cardtype_filter, command=self.display_cards)
+        self.filters_button = CheckboxDropdown(self.filter_frame, text="Apply Filters",
+                                               variables=self.special_filters | self.supertypes_filter | self.cardcolor_filter | self.cardtype_filter,
+                                               command=self.display_cards)
 
     #####################
     ''' Functionality '''
@@ -184,8 +175,7 @@ class DeckManagerApp(customtkinter.CTk):
         # super_types = [type for type, var in self.supertypes_filter.items() if var.get()]
         # color = [type for type, var in self.cardcolor_filter.items() if var.get()]
         # sub_type = [type for type, var in self.cardtype_filter.items() if var.get()]
-        name = self.search_box.get()
-        print(name)
+        name = self.search_box.get() 
         ret_filters = {}
         # if len(special) != 0:
         #     ret_filters["special"] = special
