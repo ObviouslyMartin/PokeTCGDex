@@ -110,10 +110,10 @@ class CardDatabase:
         returns id of the last accessed id
         '''
         # Insert a new row if the card does not exist <count> times
-        card_id = self.__get_card_id_by_name(name=new_card["name"], number=new_card["number"], set_total=new_card["set_total"])
+        card_id = self.__get_card_id_by_name(name=new_card["name"], number=new_card["number"])
         if card_id:
             # Card exists, update the quantity
-            return self.__update_card(card_id, quantity) 
+            return self.__update_card(card_id[0], quantity) 
         else:
             card_id = self.__insert_card(new_card, quantity)
             self.__update_sets(new_card["set_id"], new_card["set_name"], new_card["set_series"], new_card["set_image_url"], new_card["set_image_path"],card_id=card_id)
@@ -299,7 +299,7 @@ class CardDatabase:
     def find_deck(self, deck_name):
         ''' returns True or False if the deck exists or not'''
         found = self.__get_deck_id_by_name(deck_name=deck_name)
-        return found == None
+        return found != None
     
     def __get_deck_id_by_name(self, deck_name) -> tuple | None:
         '''returns (id,) of the deck or None if not found'''
@@ -309,8 +309,11 @@ class CardDatabase:
     def __get_quantity_in_deck(self, deck_id, card_id):
         ''' return tuple of the amount of a specific card in a deck'''
         self.cursor.execute("SELECT quantity FROM deck_cards WHERE deck_id = ? AND card_id = ?", (deck_id, card_id))
-        result = self.cursor.fetchone()[0]
-        return result
+        result = self.cursor.fetchone()
+        if result:
+            return result[0]
+        else:
+            return 0
 
     
     
@@ -380,18 +383,25 @@ class CardDatabase:
         if not card_id: 
             return 0
         quantity = self.get_quantity(card_id=card_id[0], deck_id=deck_id)
-        if quantity <= amount:
-            # delete all
-            self.cursor.execute(
-                "DELETE FROM deck_cards WHERE deck_id = ? AND card_id = ?", (deck_id, card_id[0])
-            )
+        if deck_id!=-1:
+            if quantity <= amount:
+                # delete all
+                self.cursor.execute(
+                    "DELETE FROM deck_cards WHERE deck_id = ? AND card_id = ?", (deck_id, card_id[0])
+                )
+            else:
+                new_quantity = quantity - amount
+                self.cursor.execute("UPDATE deck_cards SET quantity = ? WHERE deck_id = ? AND card_id = ?", (new_quantity, deck_id, card_id[0]))
         else:
-            new_quantity = quantity - amount
-            self.cursor.execute("UPDATE deck_cards SET quantity = ? WHERE deck_id = ? AND card_id = ?", (new_quantity, deck_id, card_id[0]))
+            if quantity <= amount:
+                self.cursor.execute("DELETE FROM cards WHERE id = ?", (card_id[0],))
+            else:
+                new_quantity = quantity - amount
+                self.cursor.execute("UPDATE cards SET quantity = ? WHERE id = ?", (new_quantity, card_id[0],))
         self.conn.commit()
         return self.cursor.rowcount  # Returns the number of rows affected
     
-    def delete_card(self, card_id):
+    def __delete_card(self, card_id):
         logger.info(f"DB: about to delete {card_id}")
         exists = self.__check_card(card_id=card_id)
         if not exists:
@@ -638,7 +648,7 @@ class CardDatabase:
 
         with open('decks.csv', 'w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow(['deck_name', 'card_name', 'card_number', 'card_set_total', 'amount'])  # Include the header for amount
+            writer.writerow(['deck_name', 'name', 'number', 'set_total', 'amount'])  # Include the header for amount
             writer.writerows(rows)
 
 if __name__ == '__main__':
