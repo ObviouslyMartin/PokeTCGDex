@@ -77,6 +77,7 @@ class DeckManagerApp(customtkinter.CTk):
         self.total_cards_label.grid(row=0, column=4, sticky='w')
 
         self.create_filter_options()
+        self.create_filter_buttons()
 
     def create_navigation_frame(self):
         self.navigation_frame = customtkinter.CTkFrame(self, corner_radius=0)
@@ -208,9 +209,8 @@ class DeckManagerApp(customtkinter.CTk):
             image = Image.open(card_info["image_path"])
             photo = customtkinter.CTkImage(image, size=(230, 300))
 
-            card_label = customtkinter.CTkButton(self.card_display_frame, corner_radius=5, width=180, height=240, image=photo, text="")
             card_label = customtkinter.CTkButton(self.card_display_frame, image=photo, text="", 
-                                                command=lambda card=card_info: self.card_picture_press_event(card))
+                                                command=lambda card=card_info: self.card_picture_press_event(card), fg_color="transparent", hover_color="blue")
             card_label.grid(row=row, column=col, padx=5, pady=5)
 
             count_label = customtkinter.CTkLabel(self.card_display_frame, text=f"x{card_info['quantity']}", font=customtkinter.CTkFont(size=14))
