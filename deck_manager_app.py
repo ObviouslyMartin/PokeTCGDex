@@ -173,15 +173,15 @@ class DeckManagerApp(customtkinter.CTk):
 
     def __get_filters(self):
         # special = [type for type, var in self.special_filters.items() if var.get()]
-        # super_types = [type for type, var in self.supertypes_filter.items() if var.get()]
+        super_types = [type for type, var in self.supertypes_filter.items() if var.get()]
         # color = [type for type, var in self.cardcolor_filter.items() if var.get()]
         # sub_type = [type for type, var in self.cardtype_filter.items() if var.get()]
         name = self.search_box.get() 
         ret_filters = {}
         # if len(special) != 0:
         #     ret_filters["special"] = special
-        # if len(super_types) != 0:
-        #     ret_filters["super_types"] = super_types
+        if len(super_types) != 0:
+            ret_filters["super_types"] = super_types
         # if len(color) != 0:
         #     ret_filters["color"] = color
         # if len(sub_type) != 0:
