@@ -11,3 +11,4 @@ extras/*
 Sets/*
 *.log
 *.txt
+*-workspace

@@ -1,10 +1,12 @@
 
-from card_database import CardDatabase
+# from card_database import CardDatabase
+from new_db import CardDatabase
 from CardGenerator import CardGenerator
 import csv
 import logging
 import time
 logger = logging.getLogger(__name__)
+SLEEP_LENGTH = 2
 class Controller:
     def __init__(self, db_path) -> None:
         # self.db = CardDatabase("test_db.db")
@@ -16,12 +18,8 @@ class Controller:
             Finds the card from the given input and tells the database to store the card
             Input from: DeckManagerApp.add_card_button_press_event()
         '''
-        # card_ids_added = [] # for reference regarding added cards
-        # Find card from sdk and then store in databse, input might be incorrect yielding no sdk_card
-        # try:,
-        # query pokemon tcg sdk
+
         logging.debug(f'fetching {card_name}, {card_number}/{set_total} from SDK')
-        time.sleep(0.5)
         sdk_card = self.card_generator.get_card_details(name=card_name, number=card_number, set_total=set_total, promo=bool(is_promo))
         if not sdk_card:
             logging.debug(f'Could not fetch {card_name}, {card_number}/{set_total} from SDK')
@@ -30,10 +28,9 @@ class Controller:
         
         # add amount of cards to the database
         logging.debug(f'Adding {card_name}, {card_number}/{set_total} to database')
-        db_card_id = self.db.add_card(sdk_card, int(amount))
+        db_card_id = self.db.manage_card(card_info=sdk_card, quantity=int(amount))
         logger.info(f"new card id: {db_card_id}")
-        # card_ids_added.append(db_card_id)
-        return
+        return db_card_id
 
         # except Exception as e:
         #     print("error in Controller.add_to_db_from_input()")
@@ -45,7 +42,7 @@ class Controller:
             tells the db to make a new deck entry
             returns deck_id
         '''
-        deck_id = self.db.create_deck(deck_name=deck_name)
+        deck_id = self.db.manage_deck(deck_name=deck_name)
         logger.info(f'new deck_id: {deck_id}')
         return deck_id
 
@@ -87,14 +84,17 @@ class Controller:
         return decks
     
     def move_card_to_deck(self, deck_name, card_info, amount):
-        return self.db.move_card_to_deck(deck_name=deck_name, card=card_info, count=amount)
+        return self.db.manage_deck(deck_name=deck_name, card=card_info, quantity=amount)
         
     
     def remove_card(self, deck_id, card, amount):
         '''
             removes card_ids from decks or from the database entirely
         '''
-        removed = self.db.remove_card_from_deck(deck_id=deck_id, card=card, amount=amount)
+        if deck_id != -1:
+            removed = self.db.manage_card_removal(deck_id=deck_id, card=card, amount_to_remove=amount)
+        else:
+            removed = self.db.manage_card_removal(card_info=card, quantity=amount)
         logger.info(f'removed {removed} from deck')
     
     def load_cards_from_csv(self, csv_file='cards.csv'):
@@ -102,6 +102,9 @@ class Controller:
             import cards from csv. 
             name,number,set_total,amount
         '''
+        # Count the number of lines in the CSV file
+        with open(csv_file, 'r', encoding='utf-8') as file:
+            total_lines = len(file.readlines())
         with open(csv_file, newline='', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
@@ -114,30 +117,34 @@ class Controller:
                 except KeyError:
                     promo=False
                 
-                    
+                
                 self.add_to_db_from_input(card_name=name, card_number=number, set_total=set_total, amount=amount, is_promo=promo)
-    
+                if total_lines >= 30:
+                    time.sleep(2)
     def load_decks_from_csv(self, csv_file='decks.csv'):
         '''
             for each card, find the card in the databse using the csv to get atributes (mimic clicking on a card)
             then pass that card_info to self.move_card_to_deck
         '''
         print(f'in controller load_decks csv_file: {csv_file}')
+        with open(csv_file, 'r', encoding='utf-8') as file:
+                total_lines = len(file.readlines())
         with open(csv_file, newline='', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
-                db_card = self.db.find_card(name=row['name'], number=row['number'])
+                db_card = self.db.get_card_info_by_name(name=row["name"], number=row["number"])
                 if not db_card:
                     # create new card and then move to deck
-                    db_card = self.add_to_db_from_input(card_name=row['name'], card_number=row['number'], set_total=row['set_total'], amount=row['amount'])
-
-                deck_exists = self.db.find_deck(row['deck_name'])
-                if not deck_exists:
-                    print(f"deck name: {row['deck_name']} does not exist. Creating new deck...")
-                    deck_exists = self.db.create_deck(deck_name=row['deck_name'])
+                    if total_lines>=30:
+                        time.sleep(2)
+                    try:
+                        promo=row['promo']
+                    except KeyError:
+                        promo=False
+                    db_card = self.add_to_db_from_input(card_name=row['name'], card_number=row['number'], set_total=row['set_total'], amount=row['amount'], is_promo=promo)
                 
                 print(f"moving {row['name']}, {row['number']}/{row['set_total']} to deck: {row['deck_name']}")
-                self.db.move_card_to_deck(deck_name=row['deck_name'], card={"name": row['name'], "number":row['number']}, count=int(row['amount']))
+                self.db.manage_deck(deck_name=row['deck_name'], card={"name": row['name'], "number":row['number']}, quantity=int(row['amount']))
 
     def get_ability(self, card_id):
        

@@ -3,8 +3,9 @@ if __name__ == '__main__':
     import logging
 
     ''' define database path '''
-    database = "no_dupes.db"
+    # database = "no_dupes.db"
     # database = "test_db.db"
+    database = "new_db_test.db"
 
     '''establish logging service'''
     filename = 'base.log' # TODO:  Append to time / date named log file

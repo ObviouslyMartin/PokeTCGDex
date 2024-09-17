@@ -377,35 +377,43 @@ class CardDatabase:
     #     for deck in decks:
     #         self.delete_deck(deck_id=deck)
 
-    def remove_card_from_deck(self, deck_id, card, amount):
+    def remove_card_from_deck(self, deck_id, card, amount_to_remove):
         # ensure card exists
         card_id = self.__get_card_id_by_name(name=card["name"], number=card["number"])
         if not card_id: 
             return 0
+        
         quantity = self.get_quantity(card_id=card_id[0], deck_id=deck_id)
-        if deck_id!=-1:
-            if quantity <= amount:
-                # delete all
-                self.cursor.execute(
-                    "DELETE FROM deck_cards WHERE deck_id = ? AND card_id = ?", (deck_id, card_id[0])
-                )
-            else:
-                new_quantity = quantity - amount
-                self.cursor.execute("UPDATE deck_cards SET quantity = ? WHERE deck_id = ? AND card_id = ?", (new_quantity, deck_id, card_id[0]))
+        new_quantity = quantity - amount_to_remove
+                
+        if deck_id == -1 and new_quantity <= 0:
+            self.__delete_card(card_id=card_id[0])
         else:
-            if quantity <= amount:
-                self.cursor.execute("DELETE FROM cards WHERE id = ?", (card_id[0],))
-            else:
-                new_quantity = quantity - amount
-                self.cursor.execute("UPDATE cards SET quantity = ? WHERE id = ?", (new_quantity, card_id[0],))
+            self.__update_card(new_quantity, card_id[0])
+
+        if deck_id!=-1 and new_quantity <=0:
+            self.__delete_deck_card(deck_id=deck_id, card_id=card_id[0])
+        else:
+            self.__update_deck_card_quantity(new_quantity=new_quantity, card_id=card_id[0], deck_id=deck_id)
+        
         self.conn.commit()
         return self.cursor.rowcount  # Returns the number of rows affected
-    
-    def __delete_card(self, card_id):
+
+    def __update_total_card_quantity(self, new_quantity: int, card_id: int):
+        ''' Set new total card quantity'''
+        self.cursor.execute("UPDATE cards SET quantity = ? WHERE id = ?", (new_quantity, card_id))
+
+    def __update_deck_card_quantity(self, new_quantity: int, card_id: int, deck_id: int):
+        ''' set new deck card quantity'''
+        self.cursor.execute("UPDATE deck_cards SET quantity = ? WHERE deck_id = ? AND card_id = ?", (new_quantity, deck_id, card_id))
+        
+    def __delete_deck_card(self, card_id: int, deck_id: int):
+        ''' remove id from deck '''
+        self.cursor.execute("DELETE FROM deck_cards WHERE deck_id = ? AND card_id = ?", (deck_id, card_id))
+
+    def __delete_card(self, card_id: int):
+        ''' remove card from database entirely '''
         logger.info(f"DB: about to delete {card_id}")
-        exists = self.__check_card(card_id=card_id)
-        if not exists:
-            return 0
         self.cursor.execute(
             "DELETE FROM cards WHERE id = ?", (card_id,)
         )
@@ -414,9 +422,6 @@ class CardDatabase:
         return self.cursor.rowcount  # Returns the number of rows affected
 
     def delete_deck(self, deck_id):
-        exists = self.__check_card(deck_id=deck_id)
-        if not exists:
-            return 0
         self.cursor.execute(
             "DELETE FROM decks WHERE id = ?", (deck_id,)
         )
