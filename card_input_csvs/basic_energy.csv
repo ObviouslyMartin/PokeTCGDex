@@ -1,14 +1,14 @@
 name,number,set_total,amount
-Basic Water Energy,3,8,53
+Basic Darkness Energy,7,8,12
+Basic Fighting Energy,6,8,52
+Basic Fire Energy,2,8,53
+Basic Grass Energy,1,8,47
+Basic Lightning Energy,4,8,53
 Basic Metal Energy,8,8,49
 Basic Psychic Energy,5,8,36
-Psychic Energy,101,102,17
-Basic Fire Energy,2,8,53
-Fire Energy,98,102,5
-Basic Fighting Energy,6,8,52
+Basic Water Energy,3,8,53
 Fighting Energy,97,102,44
-Basic Grass Energy,1,8,47
+Fire Energy,98,102,5
 Grass Energy,99,102,1
-Basic Lightning Energy,4,8,53
 Lightning Energy,100,102,14
-Basic Darkness Energy,7,8,12
+Psychic Energy,101,102,17

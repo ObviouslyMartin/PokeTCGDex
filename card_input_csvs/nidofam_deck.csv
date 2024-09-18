@@ -1,26 +1,30 @@
 deck_name,name,number,set_total,amount,promo
-NidoFam,Basic Darkness Energy,7,8,20,False
-NidoFam,Nidoran,29,165,2,False
-NidoFam,Nidorina,30,165,2,False
+NidoFam,Basic Darkness Energy,7,8,19,False
+NidoFam,Nidoran,29,165,1,False
+NidoFam,Nidorina,30,165,1,False
 NidoFam,Nidoqueen,31,165,1,False
 NidoFam,Nidoran,32,165,2,False
-NidoFam,Nidorino,33,165,2,False
 NidoFam,Nidoking,34,165,2,False
 NidoFam,Bloodmoon Ursaluna ex,141,167,1,False
+NidoFam,Roaring Moon ex,124,182,1,False
+NidoFam,Brute Bonnet,123,182,1,False
 NidoFam,Pecharunt,149,None,1,True
-NidoFam,Hoopa ex,98,182,1,False
+NidoFam,Snorlax,143,165,1,False
 NidoFam,Leftovers,163,165,3,False
 NidoFam,Big Air Balloon,155,165,1,False
 NidoFam,Vengeful Punch,197,197,1,False
 NidoFam,Atticus,77,91,2,False
-NidoFam,Iono,80,91,2,False
 NidoFam,Friends in Hisui,130,159,3,False
-NidoFam,Friends in Sinnoh,131,159,3,False
+NidoFam,Super Potion,90,102,1,False
 NidoFam,Larry,165,182,1,False
 NidoFam,Trekking Shoes,145,159,4,False
 NidoFam,Nest Ball,181,198,1,False,
+NidoFam,Pokédex,87,102,1,False
 NidoFam,Pokégear 3.0,186,198,1,False
 NidoFam,Gust of Wind,93,102,1,False
-NidoFam,Pokédex,87,102,1,False
-NidoFam,Roark,173,182,1,False
-NidoFam,Dancer,232,264,1,False
+NidoFam,Rare Candy,173,198,2,False
+NidoFam,Binding Mochi,55,64,2,False
+NidoFam,Professor Sada's Vitality,170,182,1,False
+NidoFam,Ancient Booster Energy Capsule,140,162,1,False
+NidoFam,Pokémon League Headquarters,192,197,1,False
+NidoFam,Jacq,175,198,2,False

@@ -105,7 +105,7 @@ class DeckManagerApp(customtkinter.CTk):
     def create_filter_options(self):
         # Checkbox options
         self.special_filters = { #sdk_card["abilities"]
-            'Ability': customtkinter.BooleanVar(),
+            # 'Ability': customtkinter.BooleanVar(),
         }
         self.supertypes_filter = { # sdk_card["supertypes"]
             'Energy': customtkinter.BooleanVar(),
@@ -123,16 +123,17 @@ class DeckManagerApp(customtkinter.CTk):
             # 'Pokémon Tool': customtkinter.BooleanVar(),
         }
         self.cardcolor_filter = { # sdk_card["card_types"]
-            'Colorless': customtkinter.BooleanVar(),
-            'Darkness': customtkinter.BooleanVar(),
-            'Fighting': customtkinter.BooleanVar(),
-            'Fire': customtkinter.BooleanVar(),
-            'Grass': customtkinter.BooleanVar(),
-            'Lightning': customtkinter.BooleanVar(),
-            'Metal': customtkinter.BooleanVar(),
-            'Psychic': customtkinter.BooleanVar(),
-            'Water': customtkinter.BooleanVar(),
+            # 'Colorless': customtkinter.BooleanVar(),
+            # 'Darkness': customtkinter.BooleanVar(),
+            # 'Fighting': customtkinter.BooleanVar(),
+            # 'Fire': customtkinter.BooleanVar(),
+            # 'Grass': customtkinter.BooleanVar(),
+            # 'Lightning': customtkinter.BooleanVar(),
+            # 'Metal': customtkinter.BooleanVar(),
+            # 'Psychic': customtkinter.BooleanVar(),
+            # 'Water': customtkinter.BooleanVar(),
         }
+    
     ###############
     ''' BUTTONS '''
     ###############
@@ -145,6 +146,7 @@ class DeckManagerApp(customtkinter.CTk):
             ("Remove Card From Deck", self.remove_card_popup, 6),
             ("Import From File", self.import_from_file_popup, 7),
             ("Export To File", self.controller.export_db, 8),
+            ("Clear Selected Cards", self.clear_selected_cards,9)
         ]
         for text, command, row in button_configs:
             self.create_button(self.navigation_frame, text, command, row, 0, sticky='s')
@@ -162,6 +164,10 @@ class DeckManagerApp(customtkinter.CTk):
     #####################
     ''' Functionality '''
     #####################
+    def update(self):
+        # set new selected cards text
+        # display new cards
+        pass
     def load_decks(self):
         deck_names = ["-1: All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.controller.get_decks().items()]
         self.deck_combobox.configure(values=deck_names)
@@ -423,7 +429,9 @@ class DeckManagerApp(customtkinter.CTk):
     def card_picture_press_event(self, card_info):
         print(card_info)
         self.selected_card = card_info
-        self.selected_card_label.configure(text=f'{self.selected_card["name"]}, {self.selected_card["number"]}/{self.selected_card["set_total"]}') if self.selected_card else ""
+        self.selected_card_label.configure(text=f'{self.selected_card["name"]}, {self.selected_card["number"]}/{self.selected_card["set_total"]}')
+    def clear_selected_cards(self):
+        self.selected_card_label.configure(text="")
 
 if __name__ == '__main__':
     print("run with main.py")
