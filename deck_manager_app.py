@@ -6,15 +6,16 @@ from controller import Controller
 import logging
 logger = logging.getLogger(__name__)
 # The View
+
+# customtkinter.set_appearance()
 class DeckManagerApp(customtkinter.CTk):
-    WINDOW_HEIGHT = 1169
-    WINDOW_WIDTH = 1800
 
     def __init__(self, db_path):
         super().__init__()
-
+        self.height = 1169
+        self.width = 1800
         self.title("Deck Manager")
-        self.geometry(f"{self.WINDOW_WIDTH}x{self.WINDOW_HEIGHT}")
+        self.geometry(f"{self.width}x{self.height}")
 
         self.controller = Controller(db_path)
         self.selected_deck_id = -1
@@ -71,7 +72,7 @@ class DeckManagerApp(customtkinter.CTk):
 
         self.search_box = customtkinter.CTkEntry(master=self.filter_frame, width=280, placeholder_text="Search Cards...")
         self.search_box.grid(row=0, column=2, sticky='w')
-        self.search_button = customtkinter.CTkButton(self.filter_frame, width=70, text="Search", command=self.display_cards)
+        self.search_button = customtkinter.CTkButton(self.filter_frame, width=70, text="Search", command=lambda: self.display_cards())
         self.search_button.grid(row=0, column=3, sticky='w')
         self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
         self.total_cards_label.grid(row=0, column=4, sticky='w')
@@ -90,7 +91,7 @@ class DeckManagerApp(customtkinter.CTk):
         self.title_label = customtkinter.CTkLabel(self.navigation_frame, text="Poké TCG Dex", font=customtkinter.CTkFont(size=20, weight="bold"))
         self.title_label.grid(row=1, column=0, padx=20, pady=10)
 
-        self.deck_combobox = customtkinter.CTkComboBox(self.navigation_frame, variable=self.selected_deck_id, values=[], command=self.on_deck_select)
+        self.deck_combobox = customtkinter.CTkComboBox(self.navigation_frame, values=["All Cards"], command=lambda: self.on_deck_select(self.selected_deck_id))
         self.deck_combobox.grid(row=2, column=0, padx=20, pady=10, sticky="nswe")
 
         self.selected_card_label = customtkinter.CTkLabel(self.navigation_frame, text=self.selected_card)
@@ -168,12 +169,16 @@ class DeckManagerApp(customtkinter.CTk):
         # set new selected cards text
         # display new cards
         pass
+    
     def load_decks(self):
         deck_names = ["-1: All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.controller.get_decks().items()]
         self.deck_combobox.configure(values=deck_names)
 
     def on_deck_select(self, selected_deck):
-        self.selected_deck_id = int(selected_deck.split(":")[0])
+        try:
+            self.selected_deck_id = int(selected_deck.split(":")[0])
+        except:
+            self.selected_deck_id = -1
         self.current_cards = None
         self.display_cards()
 
@@ -430,6 +435,7 @@ class DeckManagerApp(customtkinter.CTk):
         print(card_info)
         self.selected_card = card_info
         self.selected_card_label.configure(text=f'{self.selected_card["name"]}, {self.selected_card["number"]}/{self.selected_card["set_total"]}')
+    
     def clear_selected_cards(self):
         self.selected_card_label.configure(text="")
 
