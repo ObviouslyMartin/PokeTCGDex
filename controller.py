@@ -1,6 +1,6 @@
 
 # from card_database import CardDatabase
-from new_db import CardDatabase
+from card_database import CardDatabase
 from CardGenerator import CardGenerator
 import csv
 import logging
@@ -9,11 +9,10 @@ logger = logging.getLogger(__name__)
 SLEEP_LENGTH = 2
 class Controller:
     def __init__(self, db_path) -> None:
-        # self.db = CardDatabase("test_db.db")
         self.db = CardDatabase(db_path=db_path)
         self.card_generator = CardGenerator()
 
-    def add_to_db_from_input(self, card_name, card_number, set_total, amount, is_promo=False) -> None:
+    def add_to_db_from_input(self, card_name, card_number, set_total, amount, is_promo=False, deck_id=None) -> None:
         '''
             Finds the card from the given input and tells the database to store the card
             Input from: DeckManagerApp.add_card_button_press_event()
@@ -28,14 +27,11 @@ class Controller:
         
         # add amount of cards to the database
         logging.debug(f'Adding {card_name}, {card_number}/{set_total} to database')
-        db_card_id = self.db.manage_card(card_info=sdk_card, quantity=int(amount))
-        logger.info(f"new card id: {db_card_id}")
+        if deck_id:
+            deck_id, db_card_id = self.db.manage_deck(deck_name=deck_id)
+        else:
+            db_card_id = self.db.manage_card(card_info=sdk_card, quantity=int(amount))
         return db_card_id
-
-        # except Exception as e:
-        #     print("error in Controller.add_to_db_from_input()")
-        #     print(f"Exception: {e}")
-        #     return
         
     def create_deck_from_input(self, deck_name) -> int:
         '''
@@ -47,7 +43,7 @@ class Controller:
         return deck_id
 
     
-    def get_cards(self, deck_id=-1, filters=[]):
+    def get_cards(self, deck_id=None, filters=[]):
         '''
             Query database for cards. 
             returns list of dictionaries of unique cards
@@ -91,8 +87,8 @@ class Controller:
         '''
             removes card_ids from decks or from the database entirely
         '''
-        if deck_id != -1:
-            removed = self.db.manage_card_removal(deck_id=deck_id, card=card, amount_to_remove=amount)
+        if deck_id != None:
+            removed = self.db.manage_card_removal(deck_id=deck_id, card_info=card, quantity=amount)
         else:
             removed = self.db.manage_card_removal(card_info=card, quantity=amount)
         logger.info(f'removed {removed} from deck')
@@ -135,14 +131,14 @@ class Controller:
                 db_card = self.db.get_card_info_by_name(name=row["name"], number=row["number"])
                 if not db_card:
                     # create new card and then move to deck
-                    if total_lines>=30:
-                        time.sleep(2)
                     try:
                         promo=row['promo']
                     except KeyError:
                         promo=False
                     db_card = self.add_to_db_from_input(card_name=row['name'], card_number=row['number'], set_total=row['set_total'], amount=row['amount'], is_promo=promo)
-                
+                    if total_lines>=30:
+                        time.sleep(1)
+
                 print(f"moving {row['name']}, {row['number']}/{row['set_total']} to deck: {row['deck_name']}")
                 self.db.manage_deck(deck_name=row['deck_name'], card={"name": row['name'], "number":row['number']}, quantity=int(row['amount']))
 

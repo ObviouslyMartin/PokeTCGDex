@@ -1,6 +1,6 @@
 deck_name,name,number,set_total,amount,promo
 Fire Fight,Fire Energy,98,102,20,False
-Fire Fight,Basic Fire Energy,2,8,3
+Fire Fight,Basic Fire Energy,2,8,3,False
 Fire Fight,Fighting Energy,97,102,4,False
 Fire Fight,Charmander,7,91,2,False
 Fire Fight,Charmander,9,25,1,False

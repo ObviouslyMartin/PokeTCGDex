@@ -10,7 +10,6 @@ class CheckboxDropdown:
         # Top-level widget (like a new window) that will hold checkboxes
         self.top_level = ctk.CTkToplevel(parent)
         self.top_level.title("Filters")
-        print(f'250 / {len(variables)} = {250/len(variables)}')
         self.top_level.geometry(f"200x{27 * len(variables)}")
         # Initially keep it hidden
         self.top_level.withdraw()
@@ -36,13 +35,10 @@ class CheckboxDropdown:
     def close_dropdown(self):
         self.top_level.withdraw()  # Hide the top-level window
 
-def this_func():
-    print("this func")
-
 def main():
     root = ctk.CTk()
     root.geometry("300x300")
-    app = CheckboxDropdown(root, variables=None, command=this_func)
+    app = CheckboxDropdown(root, variables=None)
     root.mainloop()
 
 if __name__ == "__main__":

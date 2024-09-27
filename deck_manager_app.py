@@ -1,5 +1,6 @@
 import customtkinter
 from card_filter_window import CheckboxDropdown
+from file_import_app import file_import_box
 import os
 from PIL import Image
 from controller import Controller
@@ -10,27 +11,31 @@ logger = logging.getLogger(__name__)
 # customtkinter.set_appearance()
 class DeckManagerApp(customtkinter.CTk):
 
-    def __init__(self, db_path):
+    def __init__(self, db_path, width=1800, height=1169):
         super().__init__()
-        self.height = 1169
-        self.width = 1800
+        self.height = height
+        self.width = width
         self.title("Deck Manager")
         self.geometry(f"{self.width}x{self.height}")
 
         self.controller = Controller(db_path)
-        self.selected_deck_id = -1
-        self.selected_card = ""
-        self.current_cards = None
+        self.selected_deck_id = None
+        self.selected_card = None
+        # self.cards = self.controller.get_cards()
+        # print(len(self.cards))
+        self.decks = self.controller.get_decks()
 
-        self.load_assets()
+        self.load_app_assets()
         self.setup_layout()
         self.load_decks()
         self.display_cards()
 
+
+
     ##############
     ''' Assets '''
     ##############
-    def load_assets(self):
+    def load_app_assets(self):
         image_path = "assets"
         self.images = {
             "logo": customtkinter.CTkImage(Image.open(os.path.join(image_path, "logo_crop.png")), size=(150, 150)),
@@ -72,7 +77,7 @@ class DeckManagerApp(customtkinter.CTk):
 
         self.search_box = customtkinter.CTkEntry(master=self.filter_frame, width=280, placeholder_text="Search Cards...")
         self.search_box.grid(row=0, column=2, sticky='w')
-        self.search_button = customtkinter.CTkButton(self.filter_frame, width=70, text="Search", command=lambda: self.display_cards())
+        self.search_button = customtkinter.CTkButton(self.filter_frame, width=70, text="Search", command=self.display_cards)
         self.search_button.grid(row=0, column=3, sticky='w')
         self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
         self.total_cards_label.grid(row=0, column=4, sticky='w')
@@ -91,7 +96,8 @@ class DeckManagerApp(customtkinter.CTk):
         self.title_label = customtkinter.CTkLabel(self.navigation_frame, text="Poké TCG Dex", font=customtkinter.CTkFont(size=20, weight="bold"))
         self.title_label.grid(row=1, column=0, padx=20, pady=10)
 
-        self.deck_combobox = customtkinter.CTkComboBox(self.navigation_frame, values=["All Cards"], command=lambda: self.on_deck_select(self.selected_deck_id))
+        # self.deck_combobox = customtkinter.CTkComboBox(self.navigation_frame, values=["All Cards"], command=lambda: self.on_deck_select(self.selected_deck_id))
+        self.deck_combobox = customtkinter.CTkComboBox(self.navigation_frame, values=["All Cards"], command=self.on_deck_select, variable=self.selected_deck_id)
         self.deck_combobox.grid(row=2, column=0, padx=20, pady=10, sticky="nswe")
 
         self.selected_card_label = customtkinter.CTkLabel(self.navigation_frame, text=self.selected_card)
@@ -171,15 +177,15 @@ class DeckManagerApp(customtkinter.CTk):
         pass
     
     def load_decks(self):
-        deck_names = ["-1: All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.controller.get_decks().items()]
+        deck_names = ["All Cards"] + [f"{deck[0]}: {deck[1]['name']}" for deck in self.decks.items()]
         self.deck_combobox.configure(values=deck_names)
 
     def on_deck_select(self, selected_deck):
         try:
             self.selected_deck_id = int(selected_deck.split(":")[0])
         except:
-            self.selected_deck_id = -1
-        self.current_cards = None
+            self.selected_deck_id = None
+        self.cards = None
         self.display_cards()
 
     def __get_filters(self):
@@ -208,10 +214,10 @@ class DeckManagerApp(customtkinter.CTk):
             widget.destroy()
         selected_filters = self.__get_filters()
 
-        # if not self.current_cards:
-        self.current_cards = self.controller.get_cards(deck_id=self.selected_deck_id, filters=selected_filters)
-
-        self.__display_cards(filtered_cards=self.current_cards)
+        
+        self.cards = self.controller.get_cards(deck_id=self.selected_deck_id, filters=selected_filters)
+        print(selected_filters)
+        self.__display_cards(filtered_cards=self.cards)
 
     def __display_cards(self, filtered_cards):
         row, col = 0, 0
@@ -262,10 +268,6 @@ class DeckManagerApp(customtkinter.CTk):
         # submit_button.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
 
     def add_card_popup(self):
-        if self.selected_deck_id is None:
-            print("Select a deck first")
-            return
-
         self.add_card_window = customtkinter.CTkToplevel(self)
         self.add_card_window.title("Add Card")
 
@@ -301,11 +303,6 @@ class DeckManagerApp(customtkinter.CTk):
         self.added_card_label.grid(row=6, column=0, columnspan=2, padx=10, pady=10)
     
     def remove_card_popup(self):
-        if self.selected_deck_id is None:
-            print("Select a deck first")
-            return
-        if self.selected_deck_id == -1:
-            pass 
 
         self.remove_card_window = customtkinter.CTkToplevel(self)
         self.remove_card_window.title("Remove Card")
@@ -352,22 +349,46 @@ class DeckManagerApp(customtkinter.CTk):
 
         self.import_file_window = customtkinter.CTkToplevel(self)
         self.import_file_window.title("Import From File")
+        self.import_file_window.geometry('700x450')
+        selected_file = customtkinter.filedialog.askopenfilename(initialdir="/Users/martinplut/Documents/Projects/CardManager/card_input_csvs", title="Select a File", filetypes=(("CSV Files", "*.csv"),))
 
-        self.card_file_name_label = customtkinter.CTkLabel(self.import_file_window, text="Card File Name:")
-        self.card_file_name_label.grid(row=1, column=0, padx=10, pady=10)
+        self.file_name_text = customtkinter.CTkLabel(self.import_file_window, width=600, height=20, text=f"{selected_file.split('/')[-1]}")
+        self.file_name_text.grid(row=0, column=0, padx=10, pady=10)
 
-        self.card_file_name_entry = customtkinter.CTkEntry(self.import_file_window)
-        self.card_file_name_entry.grid(row=1, column=1, padx=10, pady=10)
+        # self.card_file_name_entry = customtkinter.CTkEntry(self.import_file_window)
+        # self.card_file_name_entry.grid(row=1, column=1, padx=10, pady=10)
 
-        self.deck_file_name_label = customtkinter.CTkLabel(self.import_file_window, text="Deck File Name:")
-        self.deck_file_name_label.grid(row=2, column=0, padx=10, pady=10)
+        # self.deck_file_name_label = customtkinter.CTkLabel(self.import_file_window, text="Deck File Name:")
+        # self.deck_file_name_label.grid(row=2, column=0, padx=10, pady=10)
 
-        self.deck_file_name_entry = customtkinter.CTkEntry(self.import_file_window)
-        self.deck_file_name_entry.grid(row=2, column=1, padx=10, pady=10)
+        # self.deck_file_name_entry = customtkinter.CTkEntry(self.import_file_window)
+        # self.deck_file_name_entry.grid(row=2, column=1, padx=10, pady=10)
+
+        # self.create_deck_checkbox = customtkinter.CTkCheckBox(self.import_file_window, text="Create deck from import")
 
         self.import_button = customtkinter.CTkButton(self.import_file_window, text="Import", command=self.file_import_confirm_button_press_event)
-        self.import_button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
+        self.import_button.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
 
+    def file_import_confirm_button_press_event(self):
+        file = self.file_name_text._text
+        # deck_file_name = self.deck_file_name_entry.get()
+
+        # if not card_file_name and not deck_file_name:
+        if not file:
+            logger.warning(f'card file name and deck file name are empty')
+            self.remove_card_window.destroy()
+            return
+
+        if file:
+            print(file)
+            self.controller.load_cards_from_csv(csv_file="card_input_csvs/"+file)
+
+        # if deck_file_name:
+        #     self.controller.load_decks_from_csv(csv_file="card_input_csvs/"+deck_file_name+'.csv')
+        self.cards = None
+        self.load_decks()
+        self.display_cards()
+        self.import_file_window.destroy()
 
     def add_card_button_press_event(self):
         ''' 
@@ -380,10 +401,15 @@ class DeckManagerApp(customtkinter.CTk):
         is_promo = self.is_promo_entry.get() if self.is_promo_entry.get() else False
 
         if name and number:
-            new_ids = self.controller.add_to_db_from_input(card_name=name, card_number=number, set_total=set_total, amount=amount, is_promo=is_promo)
-            self.current_cards = None
+            self.added_card_label.configure(text=f'Searching for {name}, {number}/{set_total}')
+            new_ids = self.controller.add_to_db_from_input(card_name=name, card_number=number, set_total=set_total, amount=amount, is_promo=is_promo, deck_id=self.selected_deck_id)
+            self.cards = None
+            if not new_ids:
+                self.added_card_label.configure(text=f'Error adding card, check input')
+            
             self.added_card_label.configure(text=f'Successfully added:\n{name}, {number}/{set_total}\nAmount: x{amount}')
             self.display_cards()
+            
 
         else:
             print("Name and number are required to add a card")
@@ -396,37 +422,19 @@ class DeckManagerApp(customtkinter.CTk):
         card = self.selected_card
         amount = self.amount_to_add_entry.get()
         self.controller.move_card_to_deck(deck_name, card, int(amount))
-        self.current_cards = None
+        self.cards = None
         self.display_cards()
         self.move_card_window.destroy()
 
     def remove_card_button_press_event(self):
-        deck_id = self.selected_deck_id
         amount = int(self.amount_to_remove_entry.get())
-        self.controller.remove_card(deck_id=deck_id, card=self.selected_card, amount=amount)
+        self.controller.remove_card(deck_id=self.selected_deck_id, card=self.selected_card, amount=amount)
         self.selected_card = None
-        self.current_cards = None
+        self.cards = None
         self.display_cards()
         self.remove_card_window.destroy()
 
-    def file_import_confirm_button_press_event(self):
-        card_file_name = self.card_file_name_entry.get()
-        deck_file_name = self.deck_file_name_entry.get()
 
-        if not card_file_name and not deck_file_name:
-            logger.warning(f'card file name and deck file name are empty')
-            self.remove_card_window.destroy()
-            return
-
-        if card_file_name:
-            self.controller.load_cards_from_csv(csv_file="card_input_csvs/"+card_file_name+'.csv')
-
-        if deck_file_name:
-            self.controller.load_decks_from_csv(csv_file="card_input_csvs/"+deck_file_name+'.csv')
-        self.current_cards = None
-        self.load_decks()
-        self.display_cards()
-        self.import_file_window.destroy()
         
     def change_appearance_mode_event(self, new_appearance_mode):
         customtkinter.set_appearance_mode(new_appearance_mode)
