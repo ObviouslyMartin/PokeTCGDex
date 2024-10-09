@@ -20,19 +20,20 @@ class CheckboxDropdown:
         # options = 
         last_row = 0
         for i, (type, var) in enumerate(variables.items()):
-            chk = ctk.CTkCheckBox(self.top_level, text=type, variable=var, command=command)
+            chk = ctk.CTkCheckBox(self.top_level, text=type, variable=var)
             chk.grid(row=i, column=0, sticky='w')
             last_row = i+1
             # self.variables.append(variable)
 
         # Close button in the dropdown
-        close_button = ctk.CTkButton(self.top_level, text="Apply", command=self.close_dropdown)
+        close_button = ctk.CTkButton(self.top_level, text="Apply", command=lambda command=command: self.close_dropdown(command=command))
         close_button.grid(row=last_row)
 
     def open_dropdown(self):
         self.top_level.deiconify()  # Show the top-level window
 
-    def close_dropdown(self):
+    def close_dropdown(self, command):
+        command()
         self.top_level.withdraw()  # Hide the top-level window
 
 def main():
@@ -42,4 +43,5 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    # main()
+    pass

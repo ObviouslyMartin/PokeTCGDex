@@ -35,7 +35,7 @@ class CardGenerator:
         set_total = tcg_card.get("set", {}).get("printedTotal", "none")
         super_type = tcg_card.get("supertype", ["none"])
         sub_type = ','.join(tcg_card.get("subtypes", ["none"]))
-        image_url = tcg_card.get("images", {}).get("large", "none")
+        image_url = tcg_card.get("images", {}).get("large", tcg_card.get("images", {}).get("small", "none"))
         card_type = ','.join(tcg_card.get("types", ["none"]))
         rarity = tcg_card.get("rarity", "Common")
         ability = tcg_card.get("abilities", None) # list of dicts
