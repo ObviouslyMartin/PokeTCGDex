@@ -1,5 +1,6 @@
 import customtkinter
-from card_filter_window import CheckboxDropdown
+from displayframe import DisplayFrame
+from FilterFrame import FilterFrame
 from file_import_app import file_import_box
 import os
 from PIL import Image
@@ -12,12 +13,12 @@ logger = logging.getLogger(__name__)
 class DeckManagerApp(customtkinter.CTk):
 
     def __init__(self, db_path, width=1800, height=1169):
-        super().__init__()
+        super().__init__(fg_color="red")
         self.height = height
         self.width = width
         self.title("Deck Manager")
         self.geometry(f"{self.width}x{self.height}")
-
+        
         self.controller = Controller(db_path)
         self.selected_deck_id = None
         self.selected_card = None
@@ -29,8 +30,6 @@ class DeckManagerApp(customtkinter.CTk):
         self.setup_layout()
         self.load_decks()
         self.display_cards()
-
-
 
     ##############
     ''' Assets '''
@@ -58,7 +57,6 @@ class DeckManagerApp(customtkinter.CTk):
 
         self.create_main_frame()
         self.create_navigation_frame()
-        self.create_filter_frame()
 
     def create_main_frame(self):
         self.main_frame = customtkinter.CTkFrame(self, corner_radius=0)
@@ -66,25 +64,12 @@ class DeckManagerApp(customtkinter.CTk):
         self.main_frame.grid_rowconfigure(1, weight=1)
         self.main_frame.grid_columnconfigure(0, weight=1)
 
-        self.card_display_frame = customtkinter.CTkScrollableFrame(self.main_frame)
+        self.card_display_frame = DisplayFrame(self.main_frame, self.card_picture_press_event)
         self.card_display_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nswe")
-        self.card_display_frame.grid_columnconfigure(10, weight=1)
-    
-    def create_filter_frame(self):
-        self.filter_frame = customtkinter.CTkFrame(self.main_frame)
-        self.filter_frame.grid(row=0, column=0, padx=20, pady=10, sticky="we")
-        self.filter_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
-        self.search_box = customtkinter.CTkEntry(master=self.filter_frame, width=280, placeholder_text="Search Cards...")
-        self.search_box.grid(row=0, column=2, sticky='w')
-        self.search_button = customtkinter.CTkButton(self.filter_frame, width=70, text="Search", command=self.display_cards)
-        self.search_button.grid(row=0, column=3, sticky='w')
-        self.total_cards_label = customtkinter.CTkLabel(self.filter_frame, text=0)
-        self.total_cards_label.grid(row=0, column=4, sticky='w')
-
-        self.create_filter_options()
-        self.create_filter_buttons()
-
+        self.filter_frame = FilterFrame(self.main_frame, command=self.display_cards)
+        self.filter_frame.grid(row=0,column=0, padx=20, pady=10, sticky='we')
+        
     def create_navigation_frame(self):
         self.navigation_frame = customtkinter.CTkFrame(self, corner_radius=0)
         self.navigation_frame.grid(row=0, column=0, sticky="nswe")
@@ -105,42 +90,7 @@ class DeckManagerApp(customtkinter.CTk):
 
         self.create_navigation_buttons()
 
-    ######################
-    ''' Filter Options '''
-    ######################
-    
-    def create_filter_options(self):
-        # Checkbox options
-        self.special_filters = { #sdk_card["abilities"]
-            # 'Ability': customtkinter.BooleanVar(),
-        }
-        self.supertypes_filter = { # sdk_card["supertypes"]
-            'Energy': customtkinter.BooleanVar(),
-            'Trainer': customtkinter.BooleanVar(),
-            'Pokémon': customtkinter.BooleanVar(),
-        }
-        self.cardtype_filter = { # sdk_card["sub_types"]
-            # 'Basic': customtkinter.BooleanVar(),
-            # 'Special': customtkinter.BooleanVar(),
-            # 'Stage 1': customtkinter.BooleanVar(),
-            # 'Stage 2': customtkinter.BooleanVar(),
-            # 'Item': customtkinter.BooleanVar(),
-            # 'Supporter': customtkinter.BooleanVar(),
-            # 'Stadium': customtkinter.BooleanVar(),
-            # 'Pokémon Tool': customtkinter.BooleanVar(),
-        }
-        self.cardcolor_filter = { # sdk_card["card_types"]
-            # 'Colorless': customtkinter.BooleanVar(),
-            # 'Darkness': customtkinter.BooleanVar(),
-            # 'Fighting': customtkinter.BooleanVar(),
-            # 'Fire': customtkinter.BooleanVar(),
-            # 'Grass': customtkinter.BooleanVar(),
-            # 'Lightning': customtkinter.BooleanVar(),
-            # 'Metal': customtkinter.BooleanVar(),
-            # 'Psychic': customtkinter.BooleanVar(),
-            # 'Water': customtkinter.BooleanVar(),
-        }
-    
+   
     ###############
     ''' BUTTONS '''
     ###############
@@ -162,11 +112,6 @@ class DeckManagerApp(customtkinter.CTk):
         button = customtkinter.CTkButton(frame, text=text, command=command)
         button.grid(row=row, column=column, padx=padx, pady=pady, sticky=sticky)
         return button
-    
-    def create_filter_buttons(self):
-        self.filters_button = CheckboxDropdown(self.filter_frame, text="Apply Filters",
-                                               variables=self.special_filters | self.supertypes_filter | self.cardcolor_filter | self.cardtype_filter,
-                                               command=self.display_cards)
 
     #####################
     ''' Functionality '''
@@ -189,56 +134,13 @@ class DeckManagerApp(customtkinter.CTk):
         self.display_cards()
 
     def __get_filters(self):
-        # special = [type for type, var in self.special_filters.items() if var.get()]
-        super_types = [type for type, var in self.supertypes_filter.items() if var.get()]
-        # color = [type for type, var in self.cardcolor_filter.items() if var.get()]
-        # sub_type = [type for type, var in self.cardtype_filter.items() if var.get()]
-        name = self.search_box.get() 
-        ret_filters = {}
-        # if len(special) != 0:
-        #     ret_filters["special"] = special
-        if len(super_types) != 0:
-            ret_filters["super_types"] = super_types
-        # if len(color) != 0:
-        #     ret_filters["color"] = color
-        # if len(sub_type) != 0:
-        #     ret_filters ["sub_type"] = sub_type
-        if name:
-            ret_filters["name"] = name
-        return ret_filters
+        return self.filter_frame.get_filters()
         
-
     def display_cards(self):
-        for widget in self.card_display_frame.winfo_children():
-            self.total_cards_label.configure(text=0)
-            widget.destroy()
         selected_filters = self.__get_filters()
-
-        
-        self.cards = self.controller.get_cards(deck_id=self.selected_deck_id, filters=selected_filters)
-        print(selected_filters)
-        self.__display_cards(filtered_cards=self.cards)
-
-    def __display_cards(self, filtered_cards):
-        row, col = 0, 0
-        num_cards = 0
-        for card_info in filtered_cards:
-            image = Image.open(card_info["image_path"])
-            photo = customtkinter.CTkImage(image, size=(230, 300))
-
-            card_label = customtkinter.CTkButton(self.card_display_frame, image=photo, text="", 
-                                                command=lambda card=card_info: self.card_picture_press_event(card), fg_color="transparent", hover_color="blue")
-            card_label.grid(row=row, column=col, padx=5, pady=5)
-
-            count_label = customtkinter.CTkLabel(self.card_display_frame, text=f"x{card_info['quantity']}", font=customtkinter.CTkFont(size=14))
-            count_label.grid(row=row+1, column=col, padx=5, pady=5)
-            num_cards += card_info['quantity']
-            self.total_cards_label.configure(text=num_cards)
-            col += 1
-            if col >= 6:
-                col = 0
-                row += 2
-
+        cards = self.controller.get_cards(deck_id=self.selected_deck_id, filters=selected_filters)
+        self.card_display_frame.update_items(cards)
+        self.filter_frame.total_cards_label.configure(text=self.card_display_frame.get_card_quantity())
 
     #################
     ''' UI Events '''
@@ -406,13 +308,12 @@ class DeckManagerApp(customtkinter.CTk):
             self.cards = None
             if not new_ids:
                 self.added_card_label.configure(text=f'Error adding card, check input')
-            
-            self.added_card_label.configure(text=f'Successfully added:\n{name}, {number}/{set_total}\nAmount: x{amount}')
-            self.display_cards()
-            
-
+            else:
+                self.added_card_label.configure(text=f'Successfully added:\n{name}, {number}/{set_total}\nAmount: x{amount}')
+                self.display_cards()            
         else:
-            print("Name and number are required to add a card")
+            self.added_card_label.configure(text=f'Name and number are required to add a card')
+
 
     def move_card_to_deck_confirm_button_press_event(self):
         '''

@@ -82,10 +82,11 @@ class FilterFrame(customtkinter.CTkFrame):
             'Psychic': customtkinter.BooleanVar(),
             'Water': customtkinter.BooleanVar(),
         }
-        # rarities = self.controller.get_rarities()
-        # self.rarity = dict()
+        # rarities = self.parent.controller.get_rarities()
+        # self.rarity_filter = dict()
         # for rarity in rarities:
-        #     self.rarity[rarity[0]] = customtkinter.BooleanVar()
+        #     self.rarity_filter[rarity[0]] = customtkinter.BooleanVar()
+
         self.rarity_filter = { # sdk_card["card_types"]
             'Common': customtkinter.BooleanVar(),
             'Uncommon': customtkinter.BooleanVar(),

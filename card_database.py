@@ -105,7 +105,7 @@ class CardDatabase():
         """ Manage card insertion or update in one function. """
         try:
             # Check if card already exists
-            card_id = self.__get_card_id_by_name(card_info["name"], card_info["number"])
+            card_id = self.__get_card_id_by_name(card_info["name"], card_info["number"], card_info["set_total"])
             if card_id:
                 self.__update_card_quantity(card_id, quantity, increment=True)
             else:
@@ -116,6 +116,7 @@ class CardDatabase():
         except Exception as e:
             logger.error(f"Failed to manage card: {e}")
             self.conn.rollback()
+            
     def __manage_related_data(self, card_info: dict, card_id: int):
         """ Manage sets and abilities related to the new card """
         if "set_id" in card_info: # set_id is always present, the value is None or populated
@@ -131,7 +132,7 @@ class CardDatabase():
                 deck_id = self.__insert_deck(deck_name)
             
             if card and quantity > 0:
-                card_id = self.__get_card_id_by_name(card["name"], card["number"])
+                card_id = self.__get_card_id_by_name(card["name"], card["number"], card["set_total"])
                 if not card_id:
                     card_id = self.__insert_card(card_info=card, quantity=quantity)
                 self.__move_card_to_deck(deck_id, card_id, quantity)
@@ -239,22 +240,23 @@ class CardDatabase():
         """ Inserts a new deck and returns the deck ID. """
         self.cursor.execute("INSERT INTO decks (name) VALUES (?)", (deck_name,))
         return self.cursor.lastrowid
+    
     def get_card_info_by_name(self, name, number=None, set_total=None):
         self.cursor.execute("""SELECT * FROM cards where name = ? AND number = ? """, (name, number))
         result = self.cursor.fetchall()
         return result
 
 
-    def __get_card_id_by_name(self, name:str, number:str) -> int | None:
+    def __get_card_id_by_name(self, name:str, number:str, set_total:str) -> int | None:
         '''returns card id of input name and number'''
         # SQL query to fetch the specified card details along with all matching card_ids
         query = """
             SELECT 
                 id
             FROM cards
-            WHERE name = ? AND number = ?
+            WHERE name = ? AND number = ? AND set_total = ?
         """
-        self.cursor.execute(query, (name, number))
+        self.cursor.execute(query, (name, number, set_total))
         
         # Fetch and return results
         result = self.cursor.fetchone()
@@ -386,14 +388,17 @@ class CardDatabase():
             base_query += f" WHERE cards.name like '%{filters['name']}%'"
         if 'super_types' in filters:
             base_query += f" WHERE cards.super_type IN {self.__format_filter(filters, 'super_types')}"
-        # if 'color' in filters and 'sub_type' not in filters:
-        #     base_query += f" AND cards.card_type IN {self.__format_filter(filters, 'color')}"
-        # elif 'sub_type' in filters and 'color' not in filters:
-        #     base_query += f" AND cards.sub_type IN ({self.__format_filter(filters, 'sub_type', comma_list=True)}"
-        # elif 'color' in filters and 'sub_type' in filters:
-        #     base_query += f" AND (cards.sub_type IN ({self.__format_filter(filters, 'sub_type')} OR cards.card_type IN {self.__format_filter(filters, 'color')})"
+        if 'color' in filters and 'sub_type' not in filters:
+            base_query += f" AND cards.card_type IN {self.__format_filter(filters, 'color')}"
+        if 'rarity' in filters:
+            base_query += f" AND cards.rarity IN {self.__format_filter(filters, 'rarity')}"
+        elif 'sub_type' in filters and 'color' not in filters:
+            base_query += f" AND cards.sub_type IN ({self.__format_filter(filters, 'sub_type', comma_list=True)}"
+        elif 'color' in filters and 'sub_type' in filters:
+            base_query += f" AND (cards.sub_type IN ({self.__format_filter(filters, 'sub_type')} OR cards.card_type IN {self.__format_filter(filters, 'color')})"
         # print(f"base_query: {base_query}")
         return base_query
+    
     def __format_filter(self, filters, item, comma_list=False):
         # Retrieve the list of super types from the dictionary or default to an empty list if not present
         
@@ -413,7 +418,29 @@ class CardDatabase():
         returns list of tuple objects for each deck
         [(id, name),...]
         '''
-        self.cursor.execute("SELECT id, name FROM decks")
+        substring_card_image = """
+            WITH DeckSubstrings AS (
+        SELECT
+            id AS deck_id,
+            name AS deck_name,
+            SUBSTR(name, 1, 4) AS name_substr
+        FROM
+            decks
+    )
+    SELECT
+        ds.deck_id,
+        ds.deck_name,
+        (SELECT c.image_path
+        FROM deck_cards dc
+        JOIN cards c ON dc.card_id = c.id
+        WHERE dc.deck_id = ds.deck_id AND c.name LIKE '%' || ds.name_substr || '%'
+        ORDER BY c.id ASC
+        LIMIT 1) AS first_card_image
+    FROM
+        DeckSubstrings ds;
+        """
+        self.cursor.execute(substring_card_image)
+        # self.cursor.execute("SELECT id, name FROM decks")
         decks = self.cursor.fetchall()
         return decks
     def get_ability(self, card_id):
@@ -437,7 +464,7 @@ class CardDatabase():
             Returns: 
         """
         try:
-            card_id = self.__get_card_id_by_name(card_info["name"], card_info["number"])
+            card_id = self.__get_card_id_by_name(card_info["name"], card_info["number"], card_info["set_total"])
             if not card_id:
                 logger.error("Card does not exist.")
                 return 0

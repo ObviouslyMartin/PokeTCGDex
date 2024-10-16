@@ -17,5 +17,5 @@ if __name__ == '__main__':
     ''' run app '''
     dma = DeckManagerApp(database)
     dma.mainloop()
-    
+                    
     logging.info("Application closed")
